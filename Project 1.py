@@ -43,13 +43,18 @@ class Game :
         # Frames
         self.clock = pygame.time.Clock()
         self.fps = 240
+        # Levels
+        self.wall_list = [[] for _ in range(self.nb_levels)]
+        self.special_objects_list = [[] for _ in range(self.nb_levels)]
+        self.spawn_point_list = [(None,None) for _ in range(self.nb_levels)]
+        self.level_map_list = [None for _ in range(self.nb_levels)]
         # Pygame
         pygame.init()
         self.screen = pygame.display.set_mode((self.width, self.height))
         pygame.display.set_caption('MAZE 101 - v0.3.2')
         # More
         self.center_x, self.center_y = self.screen.get_rect().centerx, self.screen.get_rect().centery
-
+        # Colors
         self.level_colors = [(255,0,255),
                              (255,125,0),
                              (0,255,0),
@@ -65,7 +70,7 @@ class Game :
     def reset(self,new_maze=0):
         # Reset levels
         if self.state == "MAZE":
-            for so in special_objects_list[game.maze-1]:
+            for so in game.special_objects_list[game.maze-1]:
                 if isinstance(so,Key) or isinstance(so,Door):
                     so.reset()
         if new_maze == 0:
@@ -221,7 +226,7 @@ class Player:
         assert isinstance(portal,Portal)
         #Searching destination portal
         dest_portal = None
-        for so in special_objects_list[game.maze-1]:
+        for so in game.special_objects_list[game.maze-1]:
             if isinstance(so,Portal) :
                 if portal.id != so.id and so.id == portal.dest_id :
                     dest_portal = so
@@ -359,6 +364,60 @@ class Button:
     def is_pressed(self,x,y):
         return self.x <= x <= self.x + self.width and self.y <= y <= self.y + self.height
 
+### Maze class
+class Maze :
+    def __init__(self,layout,tp_order):
+        self.walls = []
+        self.special_objs = []
+        self.spawn_point = player.default_pos
+
+        for row_id, row in enumerate(layout): 
+            for col_id, char in enumerate(row):
+                x = col_id * game.tile_size
+                y = row_id * game.tile_size
+
+                if char == "W":  # Wall
+
+                    #Conditions (Wall nearby)
+                    banned_letters = ["P","V"]
+                    cond_a = row_id < len(layout)-1 and layout[row_id + 1][col_id].isupper() and not layout[row_id + 1][col_id] in banned_letters # Down
+                    cond_b = row_id > 0 and layout[row_id - 1][col_id].isupper() and not layout[row_id - 1][col_id] in banned_letters # Up
+                    cond_c = col_id < len(row)-1 and layout[row_id][col_id + 1].isupper() and not layout[row_id][col_id + 1] in banned_letters # Right
+                    cond_d = col_id > 0 and layout[row_id][col_id - 1].isupper() and not layout[row_id][col_id - 1] in banned_letters # Right
+
+                    #Connecting walls
+                    if cond_a :
+                        self.walls.append(Wall(x + game.tile_size/2 - 5, y + game.tile_size/2, 10, game.tile_size/2))
+                    if cond_b :
+                        self.walls.append(Wall(x + game.tile_size/2 - 5, y, 10, game.tile_size/2))
+                    if cond_c :
+                        self.walls.append(Wall(x + game.tile_size/2, y + game.tile_size/2 - 5, game.tile_size/2, 10))
+                    if cond_d :
+                        self.walls.append(Wall(x, y + game.tile_size/2 - 5, game.tile_size/2, 10))
+                    self.walls.append(Wall(x + game.tile_size/2 - 5, y + game.tile_size/2 - 5, 10, 10))
+
+                elif char == "P":  # Player Start
+                    self.spawn_point = (x,y)
+                elif char == "V":  # Victory
+                    self.special_objs.append(Winpad(x, y))
+                elif char == "T": # Trap
+                    self.special_objs.append(Trap(x,y))
+                elif char.isdigit(): # Teleport
+                    self.special_objs.append(Portal(x,y,int(char),tp_order[int(char)]))
+                elif char.islower(): # Key
+                    self.special_objs.append(Key(x,y,char))
+                elif char.isupper(): # Door
+                    #Conditions (Wall nearby) (again)
+                    cond_a = (0 < row_id < len(layout)-1) and (layout[row_id + 1][col_id] == 'W' ) and (layout[row_id - 1][col_id] == 'W' ) # Vertical
+                    cond_b = (0 < col_id < len(row)-1) and (layout[row_id][col_id + 1] == 'W' ) and (layout[row_id][col_id - 1] == 'W' ) # Horizontal
+                    #Connect to walls
+                    if cond_a :
+                        self.special_objs.append(Door(x + game.tile_size/2 - 5, y, 10, game.tile_size,char))
+                    if cond_b :
+                        self.special_objs.append(Door(x, y + game.tile_size/2 - 5, game.tile_size, 10,char))
+                    
+        self.walls = optimise_walls(self.walls)
+
 ### Additional functions
 # Function to place objects
 def create(type,x,y,width,height,color):
@@ -436,68 +495,10 @@ def optimise_walls(walls):
     #New walls into a new list
     return [Wall(r.x, r.y, r.width, r.height) for r in rects]
 
-#Build level function
-def build_level(layout,tp_order):
-    walls = []
-    special_objs = []
-    spawn_point = player.default_pos
-
-    for row_id, row in enumerate(layout): 
-        for col_id, char in enumerate(row):
-            x = col_id * game.tile_size
-            y = row_id * game.tile_size
-
-            if char == "W":  # Wall
-
-                #Conditions (Wall nearby)
-                banned_letters = ["P","V"]
-                cond_a = row_id < len(layout)-1 and layout[row_id + 1][col_id].isupper() and not layout[row_id + 1][col_id] in banned_letters # Down
-                cond_b = row_id > 0 and layout[row_id - 1][col_id].isupper() and not layout[row_id - 1][col_id] in banned_letters # Up
-                cond_c = col_id < len(row)-1 and layout[row_id][col_id + 1].isupper() and not layout[row_id][col_id + 1] in banned_letters # Right
-                cond_d = col_id > 0 and layout[row_id][col_id - 1].isupper() and not layout[row_id][col_id - 1] in banned_letters # Right
-
-                #Connecting walls
-                if cond_a :
-                    walls.append(Wall(x + game.tile_size/2 - 5, y + game.tile_size/2, 10, game.tile_size/2))
-                if cond_b :
-                    walls.append(Wall(x + game.tile_size/2 - 5, y, 10, game.tile_size/2))
-                if cond_c :
-                    walls.append(Wall(x + game.tile_size/2, y + game.tile_size/2 - 5, game.tile_size/2, 10))
-                if cond_d :
-                    walls.append(Wall(x, y + game.tile_size/2 - 5, game.tile_size/2, 10))
-                walls.append(Wall(x + game.tile_size/2 - 5, y + game.tile_size/2 - 5, 10, 10))
-
-            elif char == "P":  # Player Start
-                spawn_point = (x,y)
-            elif char == "V":  # Victory
-                special_objs.append(Winpad(x, y))
-            elif char == "T": # Trap
-                special_objs.append(Trap(x,y))
-            elif char.isdigit(): # Teleport
-                special_objs.append(Portal(x,y,int(char),tp_order[int(char)]))
-            elif char.islower(): # Key
-                special_objs.append(Key(x,y,char))
-            elif char.isupper(): # Door
-                #Conditions (Wall nearby) (again)
-                cond_a = (0 < row_id < len(layout)-1) and (layout[row_id + 1][col_id] == 'W' ) and (layout[row_id - 1][col_id] == 'W' ) # Vertical
-                cond_b = (0 < col_id < len(row)-1) and (layout[row_id][col_id + 1] == 'W' ) and (layout[row_id][col_id - 1] == 'W' ) # Horizontal
-                #Connect to walls
-                if cond_a :
-                    special_objs.append(Door(x + game.tile_size/2 - 5, y, 10, game.tile_size,char))
-                if cond_b :
-                    special_objs.append(Door(x, y + game.tile_size/2 - 5, game.tile_size, 10,char))
-                
-    walls = optimise_walls(walls)
-    return walls, special_objs, spawn_point
-
 ### Initialise game
 game = Game()
 game.load_assets()
-
-loading_text, loading_textpos = make_text(pygame.font.Font(None, 144),"Loading...",(255,255,255),game.center_x,game.center_y)
-game.screen.blit(loading_text,loading_textpos) # Loading screen
-
-pygame.display.set_icon(game.assets["logo"])
+pygame.display.set_icon(game.assets["logo"]) # Logo
 pygame.display.flip()
 
 ### Text display 
@@ -505,6 +506,7 @@ gamename_text, gamename_textpos = make_text(game.assets["font_main"],"MAZE 101",
 levels_text = [make_text(game.assets["font_main"],"Level "+str(nb+1),(255, 255, 255),game.center_x,game.center_y - 200) for nb in range(game.nb_levels)]
 start_text, start_textpos = make_text(game.assets["font_main"],"START",(255, 255, 0),game.center_x,game.center_y)
 victory_text, victory_textpos = make_text(game.assets["font_main"],"You win !",(255, 255, 0),game.center_x,game.center_y//2)
+loading_text, loading_textpos = make_text(pygame.font.Font(None, 144),"Loading...",(255,255,255),game.center_x,game.center_y)
 
 # Tutorial (both languages)
 tutorial_fr = [make_text(game.assets["font_small"],"Se déplacer : ZQSD",(255,255,255),game.center_x,game.tile_size*2),
@@ -524,26 +526,17 @@ tutorial_en = [make_text(game.assets["font_small"],"Move : ZQSD",(255,255,255),g
 player = Player(game.center_x - 25/2, game.height - 50, 500, 25)
 
 # Maze building
+""" Add new levels here ! Add a text file, and tp order (1 to index 0 for example, must be a list of a size equal to the number of tps)"""
 
-LEVEL_1_MAP = load_map("level1.txt")
-LEVEL_1_TP = [1,None,3,None,5,None]
-LEVEL_1 = build_level(LEVEL_1_MAP,LEVEL_1_TP)
+level_configs = {
+    1: {"file": "level1.txt", "tps": [1, None, 3, None, 5, None]},
+    2: {"file": "level2.txt", "tps": [None, 0, 1, 0, 3, 0]},
+    3: {"file": "level3.txt", "tps": [1, 0, 5, 4, None, None]},
+}
 
-LEVEL_2_MAP = load_map("level2.txt")
-LEVEL_2_TP = [None,0,1,0,3,0]
-LEVEL_2 = build_level(LEVEL_2_MAP,LEVEL_2_TP)
-
-wall_list = [LEVEL_1[0],LEVEL_2[0]]
-wall_list.extend([[] for _ in range(game.nb_levels-len(wall_list))])
-
-special_objects_list = [LEVEL_1[1],LEVEL_2[1]]
-special_objects_list.extend([[] for _ in range(game.nb_levels-len(special_objects_list))])
-
-spawn_point_list = [LEVEL_1[2],LEVEL_2[2]]
-spawn_point_list.extend([(None,None) for _ in range(game.nb_levels-len(spawn_point_list))])
-
-LEVEL_MAP_LIST = [LEVEL_1_MAP,LEVEL_2_MAP]
-LEVEL_MAP_LIST.extend(None for _ in range(game.nb_levels-len(LEVEL_MAP_LIST)))
+# No level is loaded by default
+for level_nb in level_configs:
+    level_configs[level_nb]["loaded"] = False
 
 # Buttons (Menu)
 start = Button(game.center_x, game.center_y, 400, 150,None)
@@ -596,6 +589,7 @@ while game.active:
                 elif event.key == K_q:
                     game.press_left_arrow()
 
+            # Restart run
             elif game.state == "MAZE" and event.key == K_r :
                 game.reset(game.maze)
 
@@ -609,6 +603,30 @@ while game.active:
                     # Play button : Transfer the player to the right selected level from the menu
                     for level_id in range(len(level_buttons)) :
                         if level_buttons[level_id].is_pressed(MOUSE_X,MOUSE_Y) and game.level_menu == level_id+1:
+
+                            if not level_configs[level_id+1]["loaded"]: # Only loads a level when it is not loaded
+
+                                # Loading + Transition screen
+                                fade_to_black(game.width, game.height, 25)
+                                game.screen.blit(loading_text,loading_textpos)
+                                pygame.display.flip()
+
+                                if level_id+1 in level_configs : # Level needs to be not empty
+
+                                    # Create maze
+                                    config = level_configs[level_id+1]
+                                    layout = load_map(config["file"])                                
+                                    current_maze = Maze(layout,config["tps"])
+
+                                    # Modify global game values
+                                    game.level_map_list[level_id] = layout
+                                    game.wall_list[level_id] = current_maze.walls
+                                    game.special_objects_list[level_id] = current_maze.special_objs
+                                    game.spawn_point_list[level_id] = current_maze.spawn_point
+
+                                    level_configs[level_id+1]["loaded"] = True # Level has been loaded
+
+                            # Game state changes
                             game.state = "MAZE"
                             game.level_menu = 0
                             game.maze = level_id + 1
@@ -616,14 +634,14 @@ while game.active:
                             fade_to_black(game.width, game.height, 25) #Transition screen
 
                             # Window dimension updating
-                            if LEVEL_MAP_LIST[game.maze-1] != None :
-                                game.width, game.height = len(LEVEL_MAP_LIST[game.maze-1][0])*game.tile_size, len(LEVEL_MAP_LIST[game.maze-1])*game.tile_size
+                            if game.level_map_list[game.maze-1] != None :
+                                game.width, game.height = len(game.level_map_list[game.maze-1][0])*game.tile_size, len(game.level_map_list[game.maze-1])*game.tile_size
                                 game.screen = pygame.display.set_mode((game.width, game.height))
                                 game.center_x, game.center_y = game.screen.get_rect().centerx, game.screen.get_rect().centery
                                 
                                 # Move player
-                                if spawn_point_list[game.maze-1][0] != None :
-                                    x,y = spawn_point_list[game.maze-1]
+                                if game.spawn_point_list[game.maze-1][0] != None :
+                                    x,y = game.spawn_point_list[game.maze-1]
                                     player.move_spawn(x,y)
 
                             #Timer starting
@@ -647,8 +665,9 @@ while game.active:
                         
 
                 elif game.state == "MAZE": # Buttons when a level is being played
-                    pass
+                    pass # No buttons for now
                 
+                # Tutorial and victory menus : Home buttons
                 elif game.state == "FRENCH TUTORIAL" :
                     if home.is_pressed(MOUSE_X,MOUSE_Y):
                         game.state = "MAIN MENU"
@@ -672,6 +691,7 @@ while game.active:
                         game.level_menu = 1
                         fade_to_black(game.width,game.height,25)
                     
+                    # "Book" buttons goes to their respectives menus
                     if book_fr.is_pressed(MOUSE_X,MOUSE_Y):
                         game.state = "FRENCH TUTORIAL"
                         fade_to_black(game.width, game.height, 25) 
@@ -699,8 +719,8 @@ while game.active:
             dy += distance
         
         # Obstacles are walls and closed doors
-        obstacles = list(wall_list[game.maze-1])
-        for so in special_objects_list[game.maze-1]:
+        obstacles = list(game.wall_list[game.maze-1])
+        for so in game.special_objects_list[game.maze-1]:
             if isinstance(so,Door) and not so.opened:
                 obstacles.append(so)
 
@@ -708,14 +728,14 @@ while game.active:
         player.move(dx, dy, obstacles) 
 
         #Interacting with a special object
-        for so in special_objects_list[game.maze-1]:
+        for so in game.special_objects_list[game.maze-1]:
             if isinstance(so,Portal) and so.is_touched(player): # Use portal
-                if game.recall_time <= 0:
+                if game.recall_time <= 0: # To prevent infinite teleportations
                     player.use_portal(so)
                     game.recall_time = 1.0
             if isinstance(so,Winpad) and so.is_touched(player) and not player.win: # Win
                 player.victory()
-                fade_to_black(game.width,game.height,25)
+                fade_to_black(game.width,game.height,25) # Transition screen
 
                 # Music
                 if game.sound_active != None :
@@ -726,12 +746,12 @@ while game.active:
                 if not game.music_play :
                     game.sound_active.set_volume(0)
 
-                #Window resizing
+                # Window resizing
                 game.width, game.height = game.default_window_size
                 game.screen = pygame.display.set_mode(game.default_window_size)
                 game.center_x, game.center_y = game.screen.get_rect().centerx, game.screen.get_rect().centery
 
-                # Menu update
+                # Game state update
                 game.state = "VICTORY MENU"
                 game.maze = 0
 
@@ -740,11 +760,15 @@ while game.active:
 
             if isinstance(so,Key) and not so.collected and so.is_touched(player): #Collect key
                 player.pick_up_key(so)
-            if isinstance(so,Door) and not so.opened and so.rect.inflate(10,10).colliderect(player.rect): # Open door
-                if so.id in player.keys :
+            if isinstance(so,Door) and not so.opened and so.rect.inflate(10,10).colliderect(player.rect): # Open door if player has the keys 
+                if so.id in player.keys : 
                     so.open()
-            if isinstance(so,Trap) and so.is_touched(player):
+            if isinstance(so,Trap) and so.is_touched(player): # Kill player and reset maze
                 game.reset(game.maze)
+    
+    # Update tp recall time when it is on cooldown
+    if game.recall_time > 0:
+        game.recall_time -= dt
         
 
     ### VISUALS
@@ -753,17 +777,17 @@ while game.active:
     if game.state == "MAZE" :
 
         #Objects underneath the player
-        for so in special_objects_list[game.maze-1]:
+        for so in game.special_objects_list[game.maze-1]:
             if isinstance(so,Portal):
-                if so.dest_id == None :
+                if so.dest_id == None : # Tp goes nowhere -> image gets darker
                     game.screen.blit(so.img2,(so.x, so.y))
-                else :
+                else : 
                     game.screen.blit(so.img,(so.x, so.y))
             elif isinstance(so,Winpad):
                 game.screen.blit(so.img,(so.x,so.y))
-            elif isinstance(so,Key) and not so.collected:
+            elif isinstance(so,Key) and not so.collected: #Display key if not collected
                 game.screen.blit(so.img,(so.x,so.y))
-            elif isinstance(so,Door) and not so.opened:
+            elif isinstance(so,Door) and not so.opened: #Display door if not opened
                 create("rect",so.x1, so.y1, so.x2-so.x1, so.y2-so.y1,(255,255,0))
             elif isinstance(so,Trap):
                 game.screen.blit(so.img,(so.x,so.y))
@@ -773,7 +797,7 @@ while game.active:
 
         #Objects above the player
         # Walls
-        for wall in wall_list[game.maze-1]:
+        for wall in game.wall_list[game.maze-1]:
             create("rect",wall.x1, wall.y1, wall.x2-wall.x1, wall.y2-wall.y1,game.level_colors[game.maze-1])
         # Timer
         else :
@@ -846,7 +870,5 @@ while game.active:
         game.time_display = 2.0
     
     pygame.display.flip()
-    if game.recall_time > 0:
-        game.recall_time -= dt
 
 pygame.quit()
