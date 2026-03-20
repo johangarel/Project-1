@@ -604,7 +604,7 @@ while game.active:
                     for level_id in range(len(level_buttons)) :
                         if level_buttons[level_id].is_pressed(MOUSE_X,MOUSE_Y) and game.level_menu == level_id+1:
 
-                            if not level_configs[level_id+1]["loaded"]: # Only loads a level when it is not loaded
+                            if level_id+1 in level_configs and not level_configs[level_id+1]["loaded"]: # Only loads a level when it is not loaded
 
                                 # Loading + Transition screen
                                 fade_to_black(game.width, game.height, 25)
@@ -697,7 +697,7 @@ while game.active:
                         fade_to_black(game.width, game.height, 25) 
                     
                     if book_en.is_pressed(MOUSE_X,MOUSE_Y):
-                        game.state = "FRENCH TUTORIAL"
+                        game.state = "ENGLISH TUTORIAL"
                         fade_to_black(game.width, game.height, 25) 
 
 
