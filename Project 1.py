@@ -12,6 +12,8 @@ def get_path(*relative_path):
 
 ### Text display function 
 def make_text(font,txt,color,x,y):
+    if txt is None :
+        txt = ""
     t = font.render(txt, 3, color)
     tpos = t.get_rect()
     tpos.centerx = x
@@ -25,7 +27,7 @@ class Game :
         self.width = 960
         self.height = 740
         self.default_window_size = (960,740)
-        self.nb_levels = 10
+        self.nb_levels = 42
         self.tile_size = 40
         self.timer = 0
         self.recall_time = 0
@@ -48,13 +50,22 @@ class Game :
         self.special_objects_list = [[] for _ in range(self.nb_levels)]
         self.spawn_point_list = [(None,None) for _ in range(self.nb_levels)]
         self.level_map_list = [None for _ in range(self.nb_levels)]
+        # Progression
+        self.nb_stars = 0
         # Pygame
         pygame.init()
         self.screen = pygame.display.set_mode((self.width, self.height))
         pygame.display.set_caption('MAZE 101 - v0.3.2')
         # More
         self.center_x, self.center_y = self.screen.get_rect().centerx, self.screen.get_rect().centery
-        # Colors
+
+        self.level_names = ["Rooms",
+                            "Trapped",
+                            "Perfect Maze",
+                            "Glitch"]
+        self.level_names.extend([None for _ in range(self.nb_levels-len(self.level_names))])
+        self.level_names[41] = "The Answer"
+
         self.level_colors = [(255,0,255),
                              (255,125,0),
                              (0,255,0),
@@ -66,8 +77,13 @@ class Game :
                              (195, 50, 195), 
                              (225, 150, 55)]
         self.level_colors.extend([(255,255,255) for _ in range(self.nb_levels-len(self.level_colors))])
+
+        self.level_stars = [1,4,2,99]
+        self.level_stars.extend([0 for _ in range(self.nb_levels-len(self.level_stars))])
+        self.level_stars[41] = -42
     
     def reset(self,new_maze=0):
+        global stars_display, stars_displaypos
         # Reset levels
         if self.state == "MAZE":
             for so in game.special_objects_list[game.maze-1]:
@@ -91,6 +107,8 @@ class Game :
             self.width, self.height = self.default_window_size
             self.screen = pygame.display.set_mode(self.default_window_size)
             self.center_x, self.center_y = self.screen.get_rect().centerx, self.screen.get_rect().centery
+            #Refresh star counter
+            stars_display, stars_displaypos = make_text(game.assets["font_medium"],str(game.nb_stars),(255,255,255),100,50)
 
             #Music
             if self.sound_active != game.assets["menu_music"] :
@@ -122,7 +140,9 @@ class Game :
           "tutorial_en":pygame.image.load(get_path("assets","images","book_en.png")),
           "trap":pygame.image.load(get_path("assets","images","trap.png")),
           "key":pygame.image.load(get_path("assets","images","key.png")),
+          "star":pygame.image.load(get_path("assets","images","STAR.png")),
           "font_main":pygame.font.Font(None, 144),
+          "font_medium":pygame.font.Font(None, 64),
           "font_small":pygame.font.Font(None, 40)
           } 
     
@@ -503,10 +523,15 @@ pygame.display.flip()
 
 ### Text display 
 gamename_text, gamename_textpos = make_text(game.assets["font_main"],"MAZE 101",(255, 255, 255),game.center_x,game.center_y - 200)
-levels_text = [make_text(game.assets["font_main"],"Level "+str(nb+1),(255, 255, 255),game.center_x,game.center_y - 200) for nb in range(game.nb_levels)]
+level_texts = [make_text(game.assets["font_main"],"Level "+str(nb+1),(255, 255, 255),game.center_x,game.center_y - 200) for nb in range(game.nb_levels)]
+for nb in range(game.nb_levels) :
+    if game.level_names[nb] is not None :
+        level_texts[nb] = make_text(game.assets["font_main"],game.level_names[nb],(255, 255, 255),game.center_x,game.center_y - 200)
+
 start_text, start_textpos = make_text(game.assets["font_main"],"START",(255, 255, 0),game.center_x,game.center_y)
 victory_text, victory_textpos = make_text(game.assets["font_main"],"You win !",(255, 255, 0),game.center_x,game.center_y//2)
 loading_text, loading_textpos = make_text(pygame.font.Font(None, 144),"Loading...",(255,255,255),game.center_x,game.center_y)
+stars_display, stars_displaypos = make_text(game.assets["font_medium"],str(game.nb_stars),(255,255,255),100,50)
 
 # Tutorial (both languages)
 tutorial_fr = [make_text(game.assets["font_small"],"Se déplacer : ZQSD",(255,255,255),game.center_x,game.tile_size*2),
@@ -737,6 +762,9 @@ while game.active:
                 player.victory()
                 fade_to_black(game.width,game.height,25) # Transition screen
 
+                # Stars
+                game.nb_stars += game.level_stars[game.maze-1]
+
                 # Music
                 if game.sound_active != None :
                     game.sound_active.stop()
@@ -807,7 +835,7 @@ while game.active:
 
     #Level selecting menu
     elif game.state == "LEVEL MENU" :
-        for k in range(game.nb_levels + 1) :
+        for k in range(1,game.nb_levels + 1) :
             if k == game.level_menu :
                 #Current level
                 level = level_buttons[k-1]
@@ -815,15 +843,20 @@ while game.active:
                 create("rect",level.x, level.y, level.width, level.height,game.level_colors[k-1])
                 create("rect",level.x + 20, level.y + 20, level.width - 40, level.height - 40,(0,0,0))
                 #Display the right level text
-                t, tpos = levels_text[k-1]
+                t, tpos = level_texts[k-1]
                 game.screen.blit(t, tpos)
                 #Create the "PLAY" text here matching with the current level color
                 play_text, play_textpos = make_text(game.assets["font_main"],"PLAY",game.level_colors[k-1],game.center_x,game.center_y)
+                current_level_stars_text, current_level_stars_textpos = make_text(game.assets["font_medium"],": "+str(game.level_stars[k-1]),(255,255,255),game.center_x + 20,game.center_y + 200)
         #Display arrows
         game.screen.blit(left_arrow.img,(left_arrow.x,left_arrow.y))
         game.screen.blit(right_arrow.img,(right_arrow.x,right_arrow.y))
         #Play text in the center
         game.screen.blit(play_text,play_textpos)
+        #Stars reward
+        game.screen.blit(game.assets["star"],(current_level_stars_textpos.centerx-90,game.center_y+175))
+        game.screen.blit(current_level_stars_text,current_level_stars_textpos)
+
 
     #Tutorial menus
     elif game.state == "FRENCH TUTORIAL" :
@@ -856,6 +889,10 @@ while game.active:
         #Tutorial menus
         game.screen.blit(book_fr.img,(book_fr.x,book_fr.y))
         game.screen.blit(book_en.img,(book_en.x,book_en.y))
+
+        # Star counter
+        game.screen.blit(game.assets["star"],(25,25))
+        game.screen.blit(stars_display,stars_displaypos)
 
     #Music display
     if game.play_animation:
