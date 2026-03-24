@@ -1,0 +1,16 @@
+WWTTTTTTTTTTTTTTTTTWW
+W4     T     T     5W
+T        T T        T
+TTTTT TTTT TTTTTTTT T
+T     TWWWWWWWT     T
+T TTTTTW0   1WT TTTTT
+T     TW     WT     T
+TTTTT TW  P  WTTTTT T
+T     TW     WT     T
+T TTTTTW3   2WT TTTTT
+T     TWWWWWWWT     T
+TTTTT TTTTTTTTTTTTT T
+T     T       T     T
+T     T   V   T     T
+W                   W
+WWTTTTTTTTTTTTTTTTTWW

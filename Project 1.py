@@ -27,7 +27,7 @@ class Game :
         self.width = 960
         self.height = 740
         self.default_window_size = (960,740)
-        self.nb_levels = 42
+        self.nb_levels = 69
         self.tile_size = 40
         self.timer = 0
         self.recall_time = 0
@@ -37,6 +37,8 @@ class Game :
         self.state = "MAIN MENU"
         self.maze = 0
         self.level_menu = 0
+        self.font_color = (0,0,0)
+        self.second_font_color = (255,255,255)
         # Music
         self.play_animation = False
         self.music_play = True
@@ -62,9 +64,11 @@ class Game :
         self.level_names = ["Rooms",
                             "Trapped",
                             "Perfect Maze",
-                            "Glitch"]
+                            "IMPOSSIBLE"]
         self.level_names.extend([None for _ in range(self.nb_levels-len(self.level_names))])
         self.level_names[41] = "The Answer"
+        self.level_names[66] = "heheheha"
+        self.level_names[68] = "Nice"
 
         self.level_colors = [(255,0,255),
                              (255,125,0),
@@ -77,10 +81,18 @@ class Game :
                              (195, 50, 195), 
                              (225, 150, 55)]
         self.level_colors.extend([(255,255,255) for _ in range(self.nb_levels-len(self.level_colors))])
+        self.level_colors[66] = (0,0,0)
+        self.level_colors[41] = (0,0,0)
 
         self.level_stars = [1,4,2,99]
         self.level_stars.extend([0 for _ in range(self.nb_levels-len(self.level_stars))])
         self.level_stars[41] = -42
+        self.level_stars[66] = 67
+        self.level_stars[68] = 6969696969696969696969696969696969
+
+        self.level_time = ["--.--" for _ in range(self.nb_levels)]
+
+        self.reward_collected = [False for _ in range(self.nb_levels)]
     
     def reset(self,new_maze=0):
         global stars_display, stars_displaypos
@@ -515,6 +527,10 @@ def optimise_walls(walls):
     #New walls into a new list
     return [Wall(r.x, r.y, r.width, r.height) for r in rects]
 
+def invert_color(rvb):
+    r, v, b = rvb
+    return (255 - r, 255 - v, 255 - b)
+
 ### Initialise game
 game = Game()
 game.load_assets()
@@ -527,6 +543,7 @@ level_texts = [make_text(game.assets["font_main"],"Level "+str(nb+1),(255, 255, 
 for nb in range(game.nb_levels) :
     if game.level_names[nb] is not None :
         level_texts[nb] = make_text(game.assets["font_main"],game.level_names[nb],(255, 255, 255),game.center_x,game.center_y - 200)
+level_texts[66] = make_text(game.assets["font_main"],game.level_names[66],(0, 0, 0),game.center_x,game.center_y - 200)
 
 start_text, start_textpos = make_text(game.assets["font_main"],"START",(255, 255, 0),game.center_x,game.center_y)
 victory_text, victory_textpos = make_text(game.assets["font_main"],"You win !",(255, 255, 0),game.center_x,game.center_y//2)
@@ -557,6 +574,8 @@ level_configs = {
     1: {"file": "level1.txt", "tps": [1, None, 3, None, 5, None]},
     2: {"file": "level2.txt", "tps": [None, 0, 1, 0, 3, 0]},
     3: {"file": "level3.txt", "tps": [1, 0, 5, 4, None, None]},
+    4: {"file": "level4.txt", "tps": [1,2,3,0,None,None]},
+    42: {"file": "level42.txt", "tps":[]}
 }
 
 # No level is loaded by default
@@ -763,7 +782,13 @@ while game.active:
                 fade_to_black(game.width,game.height,25) # Transition screen
 
                 # Stars
-                game.nb_stars += game.level_stars[game.maze-1]
+                if not game.reward_collected[game.maze-1]:
+                    game.reward_collected[game.maze-1] = True
+                    game.nb_stars += game.level_stars[game.maze-1]
+
+                # Timer
+                if game.level_time[game.maze-1] == "--.--" or seconds < game.level_time[game.maze-1]: #Record
+                    game.level_time[game.maze-1] = seconds
 
                 # Music
                 if game.sound_active != None :
@@ -800,7 +825,10 @@ while game.active:
         
 
     ### VISUALS
-    game.screen.fill(pygame.Color(0,0,0))
+    if game.maze == 67 or game.level_menu == 67:
+        game.screen.fill(pygame.Color(255,255,255))
+    else :
+        game.screen.fill(pygame.Color(0,0,0))
     #Levels
     if game.state == "MAZE" :
 
@@ -837,25 +865,42 @@ while game.active:
     elif game.state == "LEVEL MENU" :
         for k in range(1,game.nb_levels + 1) :
             if k == game.level_menu :
+                #Level font color
+                color = game.font_color
+                if k == 67 :
+                    color = invert_color(color)
                 #Current level
                 level = level_buttons[k-1]
                 #Center play button
                 create("rect",level.x, level.y, level.width, level.height,game.level_colors[k-1])
-                create("rect",level.x + 20, level.y + 20, level.width - 40, level.height - 40,(0,0,0))
+                if k == 67 :
+                    create("rect",level.x + 20, level.y + 20, level.width - 40, level.height - 40,color)
+                else :
+                    create("rect",level.x + 20, level.y + 20, level.width - 40, level.height - 40,color)
                 #Display the right level text
                 t, tpos = level_texts[k-1]
                 game.screen.blit(t, tpos)
                 #Create the "PLAY" text here matching with the current level color
                 play_text, play_textpos = make_text(game.assets["font_main"],"PLAY",game.level_colors[k-1],game.center_x,game.center_y)
-                current_level_stars_text, current_level_stars_textpos = make_text(game.assets["font_medium"],": "+str(game.level_stars[k-1]),(255,255,255),game.center_x + 20,game.center_y + 200)
+                current_level_stars_text, current_level_stars_textpos = make_text(game.assets["font_medium"],": "+str(game.level_stars[k-1]),invert_color(color),game.center_x + 20,game.center_y + 200)
+                #Timer
+                timer_record_text, timer_record_textpos = make_text(game.assets["font_medium"],"Record : "+str(game.level_time[k-1]),invert_color(color),game.center_x,game.center_y + 275)
+                #Additional level text if level has a name
+                if game.level_names[k-1]:
+                    levelindex_text, levelindex_textpos = make_text(game.assets["font_small"],"Level "+str(game.level_menu),invert_color(color),game.center_x,100)
+                    game.screen.blit(levelindex_text,levelindex_textpos)
         #Display arrows
         game.screen.blit(left_arrow.img,(left_arrow.x,left_arrow.y))
         game.screen.blit(right_arrow.img,(right_arrow.x,right_arrow.y))
         #Play text in the center
         game.screen.blit(play_text,play_textpos)
         #Stars reward
-        game.screen.blit(game.assets["star"],(current_level_stars_textpos.centerx-90,game.center_y+175))
-        game.screen.blit(current_level_stars_text,current_level_stars_textpos)
+        level_stars_text_width, _ = current_level_stars_text.get_size()
+        game.screen.blit(game.assets["star"],(game.center_x-75,game.center_y+175))
+        game.screen.blit(current_level_stars_text,(current_level_stars_textpos.left + level_stars_text_width/2 -25, current_level_stars_textpos.top))
+        #Timer record
+        game.screen.blit(timer_record_text,timer_record_textpos)
+
 
 
     #Tutorial menus
@@ -891,8 +936,9 @@ while game.active:
         game.screen.blit(book_en.img,(book_en.x,book_en.y))
 
         # Star counter
+        stars_text_width, _ = stars_display.get_size()
         game.screen.blit(game.assets["star"],(25,25))
-        game.screen.blit(stars_display,stars_displaypos)
+        game.screen.blit(stars_display,(stars_displaypos.left + stars_text_width/2,stars_displaypos.top))
 
     #Music display
     if game.play_animation:
