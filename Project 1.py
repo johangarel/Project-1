@@ -27,7 +27,7 @@ class Game :
         self.width = 960
         self.height = 740
         self.default_window_size = (960,740)
-        self.nb_levels = 69
+        self.nb_levels = 101
         self.tile_size = 40
         self.timer = 0
         self.recall_time = 0
@@ -146,13 +146,17 @@ class Game :
           "music_level2":pygame.mixer.Sound(get_path("assets","sounds","_level2.mp3")),
           "music_level3":pygame.mixer.Sound(get_path("assets","sounds","_level3.mp3")),
           "music_level4":pygame.mixer.Sound(get_path("assets","sounds","_level4.mp3")),
+          "music_level42":pygame.mixer.Sound(get_path("assets","sounds","_level42.mp3")),
           "right_arrow":pygame.image.load(get_path("assets","images","_arrow_right.png")),
+          "right_double_arrow":pygame.image.load(get_path("assets","images","_arrow_righter.png")),
           "left_arrow":pygame.image.load(get_path("assets","images","_arrow_left.png")),
+          "left_double_arrow":pygame.image.load(get_path("assets","images","_arrow_lefter.png")),
           "tutorial_fr":pygame.image.load(get_path("assets","images","book_fr.png")),
           "tutorial_en":pygame.image.load(get_path("assets","images","book_en.png")),
           "trap":pygame.image.load(get_path("assets","images","trap.png")),
           "key":pygame.image.load(get_path("assets","images","key.png")),
           "star":pygame.image.load(get_path("assets","images","STAR.png")),
+          "completed":pygame.image.load(get_path("assets","images","YES.png")),
           "font_main":pygame.font.Font(None, 144),
           "font_medium":pygame.font.Font(None, 64),
           "font_small":pygame.font.Font(None, 40)
@@ -586,8 +590,10 @@ for level_nb in level_configs:
 start = Button(game.center_x, game.center_y, 400, 150,None)
 book_fr = Button(100, game.height -100, 100, 100, game.assets["tutorial_fr"])
 book_en = Button(250, game.height -100, 100, 100, game.assets["tutorial_en"])
-right_arrow = Button(game.width - 100, game.center_y, 50, 50, game.assets["right_arrow"])
-left_arrow = Button(100, game.center_y, 50, 50, game.assets["left_arrow"])
+right_arrow = Button(game.width - 100, game.center_y-50, 50, 50, game.assets["right_arrow"])
+left_arrow = Button(100, game.center_y-50, 50, 50, game.assets["left_arrow"])
+right_arrow2 = Button(game.width - 100, game.center_y+50, 50, 50, game.assets["right_double_arrow"])
+left_arrow2 = Button(100, game.center_y+50, 50, 50, game.assets["left_double_arrow"])
 home = Button(50, 50, 75, 75, game.assets["home"])
 level_buttons = [Button(game.center_x,game.center_y, 400, 250,None) for _ in range(game.nb_levels)]
 
@@ -595,6 +601,7 @@ level_buttons = [Button(game.center_x,game.center_y, 400, 250,None) for _ in ran
 game.sound_active = game.assets["menu_music"]
 sound_list = [game.assets["music_level1"], game.assets["music_level2"], game.assets["music_level3"], game.assets["music_level4"]]
 sound_list.extend([None for _ in range(game.nb_levels-len(sound_list))])
+sound_list[41] = game.assets["music_level42"]
 
 game.sound_active.set_volume(0.5)
 for s in sound_list :
@@ -706,6 +713,12 @@ while game.active:
                             game.press_right_arrow()
                         if left_arrow.is_pressed(MOUSE_X,MOUSE_Y):
                             game.press_left_arrow()
+                        if right_arrow2.is_pressed(MOUSE_X,MOUSE_Y):
+                            for _ in range(10):
+                                game.press_right_arrow()
+                        if left_arrow2.is_pressed(MOUSE_X,MOUSE_Y):
+                            for _ in range(10):
+                                game.press_left_arrow()
                         
 
                 elif game.state == "MAZE": # Buttons when a level is being played
@@ -892,12 +905,16 @@ while game.active:
         #Display arrows
         game.screen.blit(left_arrow.img,(left_arrow.x,left_arrow.y))
         game.screen.blit(right_arrow.img,(right_arrow.x,right_arrow.y))
+        game.screen.blit(left_arrow2.img,(left_arrow2.x,left_arrow2.y))
+        game.screen.blit(right_arrow2.img,(right_arrow2.x,right_arrow2.y))
         #Play text in the center
         game.screen.blit(play_text,play_textpos)
         #Stars reward
         level_stars_text_width, _ = current_level_stars_text.get_size()
         game.screen.blit(game.assets["star"],(game.center_x-75,game.center_y+175))
         game.screen.blit(current_level_stars_text,(current_level_stars_textpos.left + level_stars_text_width/2 -25, current_level_stars_textpos.top))
+        if game.reward_collected[game.level_menu-1]:
+            game.screen.blit(game.assets["completed"],(game.center_x-75,game.center_y+175))
         #Timer record
         game.screen.blit(timer_record_text,timer_record_textpos)
 
