@@ -3,6 +3,7 @@ import sys
 import pygame
 from pygame.locals import*
 from math import*
+from random import*
 
 ### Path finding
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -27,7 +28,7 @@ class Game :
         self.width = 960
         self.height = 740
         self.default_window_size = (960,740)
-        self.nb_levels = 101
+        self.nb_levels = 69
         self.tile_size = 40
         self.timer = 0
         self.recall_time = 0
@@ -57,7 +58,7 @@ class Game :
         # Pygame
         pygame.init()
         self.screen = pygame.display.set_mode((self.width, self.height))
-        pygame.display.set_caption('MAZE 101 - v0.3.2')
+        pygame.display.set_caption('MAZE 101 - v0.4269')
         # More
         self.center_x, self.center_y = self.screen.get_rect().centerx, self.screen.get_rect().centery
 
@@ -88,14 +89,14 @@ class Game :
         self.level_stars.extend([0 for _ in range(self.nb_levels-len(self.level_stars))])
         self.level_stars[41] = -42
         self.level_stars[66] = 67
-        self.level_stars[68] = 6969696969696969696969696969696969
+        self.level_stars[68] = 69696969696969696969696969696969696969
 
         self.level_time = ["--.--" for _ in range(self.nb_levels)]
 
         self.reward_collected = [False for _ in range(self.nb_levels)]
     
     def reset(self,new_maze=0):
-        global stars_display, stars_displaypos
+        global stars_display, stars_displaypos, victory_text, victory_textpos
         # Reset levels
         if self.state == "MAZE":
             for so in game.special_objects_list[game.maze-1]:
@@ -112,6 +113,8 @@ class Game :
         self.maze = new_maze
         self.level_menu = 0
 
+        player.speed = 500
+
         fade_to_black(game.width,game.height,25) #Transition screen
 
         if new_maze == 0:
@@ -121,16 +124,14 @@ class Game :
             self.center_x, self.center_y = self.screen.get_rect().centerx, self.screen.get_rect().centery
             #Refresh star counter
             stars_display, stars_displaypos = make_text(game.assets["font_medium"],str(game.nb_stars),(255,255,255),100,50)
+            victory_text, victory_textpos = make_text(game.assets["font_main"],"gg...",(255, 0, 0),game.center_x,game.center_y//2)
 
             #Music
             if self.sound_active != game.assets["menu_music"] :
                 if self.sound_active != None :
                     self.sound_active.stop()
-                    self.sound_active.set_volume(0.5)
                 self.sound_active = game.assets["menu_music"]
                 self.sound_active.play()
-                if not self.music_play :
-                    self.sound_active.set_volume(0)
     
     def load_assets(self):
         self.assets = {"logo":pygame.image.load(get_path("assets","images","LOGO PROJECT 1.png")),
@@ -159,7 +160,16 @@ class Game :
           "completed":pygame.image.load(get_path("assets","images","YES.png")),
           "font_main":pygame.font.Font(None, 144),
           "font_medium":pygame.font.Font(None, 64),
-          "font_small":pygame.font.Font(None, 40)
+          "font_small":pygame.font.Font(None, 40),
+          "music_level69":pygame.mixer.Sound(get_path("assets","sounds","epic.mp3")),
+          "heheheha":pygame.mixer.Sound(get_path("assets","sounds","heheheha-clash-royale.mp3")),
+          "quoi":pygame.mixer.Sound(get_path("assets","sounds","quoi !!!.mp3")),
+          "oof":pygame.mixer.Sound(get_path("assets","sounds","Roblox-death-sound.mp3")),
+          "music_level69":pygame.mixer.Sound(get_path("assets","sounds","epic.mp3")),
+          "mystery_1":pygame.mixer.Sound(get_path("assets","sounds","x-files-theme-song-copy.mp3")),
+          "mystery_2":pygame.mixer.Sound(get_path("assets","sounds","you-didnt-have-to-cut-me-off.mp3")),
+          "music_level67":pygame.mixer.Sound(get_path("assets","sounds","WELCOME TO FUCKING.mp3")),
+          "fahh":pygame.mixer.Sound(get_path("assets","sounds","fahhh_KcgAXfs.mp3"))
           } 
     
     def press_left_arrow(self):
@@ -542,7 +552,7 @@ pygame.display.set_icon(game.assets["logo"]) # Logo
 pygame.display.flip()
 
 ### Text display 
-gamename_text, gamename_textpos = make_text(game.assets["font_main"],"MAZE 101",(255, 255, 255),game.center_x,game.center_y - 200)
+gamename_text, gamename_textpos = make_text(game.assets["font_main"],"MAZE 69",(255, 255, 255),game.center_x,game.center_y - 200)
 level_texts = [make_text(game.assets["font_main"],"Level "+str(nb+1),(255, 255, 255),game.center_x,game.center_y - 200) for nb in range(game.nb_levels)]
 for nb in range(game.nb_levels) :
     if game.level_names[nb] is not None :
@@ -550,9 +560,10 @@ for nb in range(game.nb_levels) :
 level_texts[66] = make_text(game.assets["font_main"],game.level_names[66],(0, 0, 0),game.center_x,game.center_y - 200)
 
 start_text, start_textpos = make_text(game.assets["font_main"],"START",(255, 255, 0),game.center_x,game.center_y)
-victory_text, victory_textpos = make_text(game.assets["font_main"],"You win !",(255, 255, 0),game.center_x,game.center_y//2)
+victory_text, victory_textpos = make_text(game.assets["font_main"],"gg...",(255, 0, 0),game.center_x,game.center_y//2)
 loading_text, loading_textpos = make_text(pygame.font.Font(None, 144),"Loading...",(255,255,255),game.center_x,game.center_y)
 stars_display, stars_displaypos = make_text(game.assets["font_medium"],str(game.nb_stars),(255,255,255),100,50)
+GET_OUT, GET_OUT_POS = make_text(pygame.font.Font(None, 144),"GET OUT",(255,0,0),game.center_x,game.center_y)
 
 # Tutorial (both languages)
 tutorial_fr = [make_text(game.assets["font_small"],"Se déplacer : ZQSD",(255,255,255),game.center_x,game.tile_size*2),
@@ -579,12 +590,15 @@ level_configs = {
     2: {"file": "level2.txt", "tps": [None, 0, 1, 0, 3, 0]},
     3: {"file": "level3.txt", "tps": [1, 0, 5, 4, None, None]},
     4: {"file": "level4.txt", "tps": [1,2,3,0,None,None]},
-    42: {"file": "level42.txt", "tps":[]}
+    42: {"file": "level42.txt", "tps":[]},
+    67: {"file": "level67.txt", "tps":[1,None,3,4,5,6,7,8,9,0]},
+    69: {"file": "level69.txt", "tps":[0,0,3,0,5,0,7,0]}
 }
 
 # No level is loaded by default
 for level_nb in level_configs:
     level_configs[level_nb]["loaded"] = False
+
 
 # Buttons (Menu)
 start = Button(game.center_x, game.center_y, 400, 150,None)
@@ -602,6 +616,8 @@ game.sound_active = game.assets["menu_music"]
 sound_list = [game.assets["music_level1"], game.assets["music_level2"], game.assets["music_level3"], game.assets["music_level4"]]
 sound_list.extend([None for _ in range(game.nb_levels-len(sound_list))])
 sound_list[41] = game.assets["music_level42"]
+sound_list[68] = game.assets["music_level69"]
+sound_list[66] = game.assets["music_level67"]
 
 game.sound_active.set_volume(0.5)
 for s in sound_list :
@@ -618,15 +634,16 @@ while game.active:
         # Quit
         if event.type == QUIT:
             game.active = False
+            game.assets["oof"].play()
         elif event.type == KEYDOWN:
             # Music activate/desactivate [E]
             if game.sound_active != None and event.key == K_e:
                 if game.music_play:
                     game.music_play = False
-                    game.sound_active.set_volume(0)
+                    game.sound_active.set_volume(game.sound_active.get_volume()+0.5)
                 else:
                     game.music_play = True
-                    game.sound_active.set_volume(0.5)
+                    game.sound_active.set_volume(game.sound_active.get_volume()+0.5)
                 game.play_animation = True
             
             # Game reset [ESCAPE]
@@ -635,14 +652,18 @@ while game.active:
 
             # Arrows (left and right) : change the current level selected in the menu
             elif game.state == "LEVEL MENU" :
-                if event.key == K_d:
+                if event.key == K_q:
                     game.press_right_arrow()
-                elif event.key == K_q:
+                elif event.key == K_d:
                     game.press_left_arrow()
 
             # Restart run
             elif game.state == "MAZE" and event.key == K_r :
-                game.reset(game.maze)
+                if game.maze == 4 :
+                    game.reset(game.maze)
+                else :
+                    game.active = False
+                    game.assets["heheheha"].play()
 
         #Buttons
         elif event.type == MOUSEBUTTONDOWN :
@@ -658,6 +679,7 @@ while game.active:
                             if level_id+1 in level_configs and not level_configs[level_id+1]["loaded"]: # Only loads a level when it is not loaded
 
                                 # Loading + Transition screen
+                                game.assets["quoi"].play()
                                 fade_to_black(game.width, game.height, 25)
                                 game.screen.blit(loading_text,loading_textpos)
                                 pygame.display.flip()
@@ -682,6 +704,16 @@ while game.active:
                             game.level_menu = 0
                             game.maze = level_id + 1
 
+                            if game.maze == 1 :
+                                player.speed = 5000
+                            if game.maze == 3 :
+                                player.speed = 0
+                            if game.maze == 67 :
+                                game.special_objects_list[66].append(Portal(6*game.tile_size,11*game.tile_size,1,None))
+                                game.special_objects_list[66].append(Portal(13*game.tile_size,16*game.tile_size,2,3))
+                                player.speed = 0
+                                game.recall_time = 5.0
+
                             fade_to_black(game.width, game.height, 25) #Transition screen
 
                             # Window dimension updating
@@ -704,8 +736,8 @@ while game.active:
                             game.sound_active = sound_list[level_id]
                             if game.sound_active != None :
                                 game.sound_active.play()
-                                if not game.music_play :
-                                    game.sound_active.set_volume(0)
+                            if game.maze == 3 :
+                                game.sound_active.set_volume(0.2)
                     
                     # Arrows (left and right) : change the current level selected in the menu
                     if game.state == "LEVEL MENU" :
@@ -766,14 +798,21 @@ while game.active:
         #Basic movement
         dx, dy = 0, 0
         distance = player.speed * dt
-        if keys[pygame.K_q] :
-            dx -= distance
         if keys[pygame.K_d] :
+            dx -= distance
+        if keys[pygame.K_q] :
             dx += distance
-        if keys[pygame.K_z] :
-            dy -= distance
         if keys[pygame.K_s] :
+            dy -= distance
+        if keys[pygame.K_z] :
             dy += distance
+        elif game.maze == 2 and level_configs[2]["loaded"] :
+            chance = randint(1,6)
+            if chance <= 3 :
+                dx -= distance
+            else :
+                dy += choice([distance,-distance])
+
         
         # Obstacles are walls and closed doors
         obstacles = list(game.wall_list[game.maze-1])
@@ -788,8 +827,12 @@ while game.active:
         for so in game.special_objects_list[game.maze-1]:
             if isinstance(so,Portal) and so.is_touched(player): # Use portal
                 if game.recall_time <= 0: # To prevent infinite teleportations
+                    if so.dest_id != None and so.id != so.dest_id:
+                        game.assets["fahh"].play()
                     player.use_portal(so)
                     game.recall_time = 1.0
+                    if game.maze == 67 :
+                        game.recall_time = 5.0
             if isinstance(so,Winpad) and so.is_touched(player) and not player.win: # Win
                 player.victory()
                 fade_to_black(game.width,game.height,25) # Transition screen
@@ -801,21 +844,33 @@ while game.active:
 
                 # Timer
                 if game.level_time[game.maze-1] == "--.--" or seconds < game.level_time[game.maze-1]: #Record
+                    if game.maze == 67 :
+                        seconds = 67
                     game.level_time[game.maze-1] = seconds
 
                 # Music
                 if game.sound_active != None :
                     game.sound_active.stop()
                 game.sound_active = game.assets["music_victory"]
+                if game.maze == 67 :
+                    game.sound_active = game.assets["mystery_1"]
+                if game.maze == 69 :
+                    game.sound_active = game.assets["mystery_2"]
                 game.sound_active.set_volume(0.5)
                 game.sound_active.play()
-                if not game.music_play :
-                    game.sound_active.set_volume(0)
 
                 # Window resizing
                 game.width, game.height = game.default_window_size
                 game.screen = pygame.display.set_mode(game.default_window_size)
                 game.center_x, game.center_y = game.screen.get_rect().centerx, game.screen.get_rect().centery
+
+                da_color = (255,0,0)
+                if game.maze == 67 :
+                    victory_text, victory_textpos = make_text(game.assets["font_main"],"SIX SEVEN",(255, 255, 0),game.center_x,game.center_y//2)
+                    da_color = (255,255,0)
+                if game.maze == 69 :
+                    victory_text, victory_textpos = make_text(game.assets["font_main"],"n i c e",(255, 255, 0),game.center_x,game.center_y//2)
+                    da_color = (255,255,0)
 
                 # Game state update
                 game.state = "VICTORY MENU"
@@ -830,7 +885,8 @@ while game.active:
                 if so.id in player.keys : 
                     so.open()
             if isinstance(so,Trap) and so.is_touched(player): # Kill player and reset maze
-                game.reset(game.maze)
+                game.active = False
+                game.assets["heheheha"].play()
     
     # Update tp recall time when it is on cooldown
     if game.recall_time > 0:
@@ -933,7 +989,7 @@ while game.active:
 
     #Victory menu
     elif game.state == "VICTORY MENU":
-        create("rect",50,50,game.width-100,game.height-100,(255,255,0))
+        create("rect",50,50,game.width-100,game.height-100,da_color)
         create("rect",75,75,game.width-150,game.height-150,(0,0,0))
         game.screen.blit(victory_text,victory_textpos)
         game.screen.blit(home.img, (home.x,home.y))
@@ -969,6 +1025,14 @@ while game.active:
     elif game.time_display != 100 :
         game.time_display = 2.0
     
+    if not game.active :
+        game.screen.fill(pygame.Color(0,0,0))
+        game.screen.blit(GET_OUT,GET_OUT_POS)
+        pygame.display.flip()
+        game.clock.tick(0.7)
+
     pygame.display.flip()
+    if game.maze == 3 :
+        player.speed += randint(-100,100)
 
 pygame.quit()

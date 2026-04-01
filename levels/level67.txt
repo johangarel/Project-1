@@ -1,0 +1,18 @@
+0                 4      
+                         
+   WWWWWWW    WWWWWWW    
+   W                W    
+   W                W    
+   W  3         6   W    
+   W                W    
+   W                W    
+   WWWWWWW          W   5
+   W     W          W    
+   W     W   9      W    
+   W  V  W          W    
+   W     W          W    
+   W     W          W    
+   WWWWWWW          W     
+                          
+  7          P        8   
+                          
