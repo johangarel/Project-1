@@ -25,6 +25,7 @@
 * Teleporters
 * Traps
 * Keyed doors
+* Fog of war system
 * Timer and record time
 * Star system progression
 * A tutorial menu to help with the controls
@@ -55,7 +56,7 @@
 
 
 
-* Then, go into scripts/ and open the python file settings.py, and modify the variable LEVEL\_CONFIGS. Do like previous levels added, put the number id, the level text file, and a teleporter list. To make a teleporter list, add the index of the destination portal in the index of the entry portal in the list. For example, if I want tp 0 to go to tp 1, then I add 1 to index 0 in the tp list.
+* Then, go into scripts/ and open the python file settings.py, and modify the variable LEVEL\_CONFIGS. Do like previous levels added, put the number id, the level text file, a teleporter list, and if you want to activate the "fog of war" option. To make a teleporter list, add the index of the destination portal in the index of the entry portal in the list. For example, if I want tp 0 to go to tp 1, then I add 1 to index 0 in the tp list.
 
 
 
@@ -78,12 +79,13 @@
 
 \---------------------------------------------------------------------------------------------------------------------------
 
-##### **Fonctionnalités :** 
+##### **Fonctionnalités :**
 
 * 5 labyrinthes différents
 * Téléporteurs
 * Pièges
 * Portes à clés
+* Un système fog of war
 * Chronomètre et temps record
 * Progression par système d'étoiles
 * Un menu tutoriel pour aider sur les touches
@@ -114,7 +116,7 @@
 
 
 
-* Ensuite, allez dans scripts/ et ouvrez le fichier python settings.py, puis modifiez la variable LEVEL\_CONFIGS. Procédez comme pour les niveaux précédents : indiquez le numéro du niveau, le fichier texte du niveau et une liste de téléporteurs. Pour créer une liste de téléporteurs, ajoutez l'index du portail de destination à l'index du portail d'entrée dans la liste. Par exemple, si vous souhaitez que le téléporteur 0 mène au téléporteur 1, mettez 1 à l'index 0 dans la liste des téléporteurs.
+* Ensuite, allez dans scripts/ et ouvrez le fichier python settings.py, puis modifiez la variable LEVEL\_CONFIGS. Procédez comme pour les niveaux précédents : indiquez le numéro du niveau, le fichier texte du niveau , une liste de téléporteurs et si vous voulez activer l'option "fog of war". Pour créer une liste de téléporteurs, ajoutez l'index du portail de destination à l'index du portail d'entrée dans la liste. Par exemple, si vous souhaitez que le téléporteur 0 mène au téléporteur 1, mettez 1 à l'index 0 dans la liste des téléporteurs.
 
 &#x20;
 

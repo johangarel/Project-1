@@ -163,6 +163,16 @@ class Game :
             pygame.display.update()
             pygame.time.delay(28)
 
+    def draw_fog(self):
+            fog_surf = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
+            fog_surf.fill((0, 0, 0, 255)) 
+
+            for i in range(VISION_RADIUS, 0, -5):
+                alpha = int(255 * (i / VISION_RADIUS)) # Visibility is better in the center
+                pygame.draw.circle(fog_surf, (0, 0, 0, alpha), self.player.rect.center, i)
+            
+            self.screen.blit(fog_surf, (0, 0))
+
     def handle_events(self):
         for event in pygame.event.get():
             # Quit
@@ -417,11 +427,13 @@ class Game :
             # Walls
             for wall in self.wall_list[self.maze-1]:
                 self.create("rect",wall.x1, wall.y1, wall.x2-wall.x1, wall.y2-wall.y1,self.level_colors[self.maze])
+            # Activate fog of war (if needed)
+            if self.maze in self.level_configs and self.level_configs[self.maze]["fow"]:
+                self.draw_fog()
             # Timer
-            else :
-                seconds = round((pygame.time.get_ticks() - self.timer) / 1000, 2)
-                timer_text, timer_pos = make_text(self.assets["font_small"],"Time : "+str(seconds),(255,255,255),self.width-100,30)
-                self.screen.blit(timer_text,timer_pos)
+            seconds = round((pygame.time.get_ticks() - self.timer) / 1000, 2)
+            timer_text, timer_pos = make_text(self.assets["font_small"],"Time : "+str(seconds),(255,255,255),self.width-100,30)
+            self.screen.blit(timer_text,timer_pos)
 
         #Level selecting menu
         elif self.state == "LEVEL MENU" :

@@ -12,6 +12,7 @@ PLAYER_WIDTH = 25
 
 TP_WIDTH = 50
 WINPAD_WIDTH = 50
+VISION_RADIUS = 150
 
 LEVEL_NAMES = {
     1:"Rooms", 
@@ -70,9 +71,9 @@ TUTORIAL_EN_TEXT = [
 ]
 
 LEVEL_CONFIGS = {
-    1: {"file": "level1.txt", "tps": [1, None, 3, None, 5, None]},
-    2: {"file": "level2.txt", "tps": [None, 0, 1, 0, 3, 0]},
-    3: {"file": "level3.txt", "tps": [1, 0, 5, 4, None, None]},
-    4: {"file": "level4.txt", "tps": [1,2,3,0,None,None]},
-    42: {"file": "level42.txt", "tps":[]}
+    1: {"file": "level1.txt", "tps": [1, None, 3, None, 5, None], "fow":False},
+    2: {"file": "level2.txt", "tps": [None, 0, 1, 0, 3, 0], "fow":False},
+    3: {"file": "level3.txt", "tps": [1, 0, 5, 4, None, None], "fow":False},
+    4: {"file": "level4.txt", "tps": [1,2,3,0,None,None], "fow":True},
+    42: {"file": "level42.txt", "tps":[], "fow":False}
 }
