@@ -31,7 +31,7 @@ class Game :
         pygame.display.set_icon(self.assets["logo"])
         pygame.display.flip()
         # Music
-        self.play_animation = False
+        self.music_animation = False
         self.music_play = True
         self.time_display = 2.0
         self.sound_active = self.assets["menu_music"]
@@ -181,13 +181,14 @@ class Game :
             elif event.type == KEYDOWN:
                 # Music activate/desactivate [E]
                 if self.sound_active != None and event.key == K_e:
+                    self.time_display = 2.0
                     if self.music_play:
                         self.music_play = False
                         self.sound_active.set_volume(0)
                     else:
                         self.music_play = True
                         self.sound_active.set_volume(0.5)
-                    self.play_animation = True
+                    self.music_animation = True
                 
                 # Game reset [ESCAPE]
                 elif event.key == K_ESCAPE and not self.state == "MAIN MENU" :
@@ -395,17 +396,27 @@ class Game :
         # Update tp recall time when it is on cooldown
         if self.recall_time > 0:
             self.recall_time -= self.dt
+        
+        # Update music animation
+        if self.music_animation and self.time_display <= 0 :
+                self.music_animation = False
+        if not self.music_animation and self.time_display != 2.0 :
+            self.time_display = 2.0
 
     def render(self):
+        # Font color
         if self.maze == 67 or self.level_menu == 67:
             self.screen.fill(pygame.Color(255,255,255))
         else :
             self.screen.fill(pygame.Color(0,0,0))
+        
         #Levels
         if self.state == "MAZE" :
+            objs = self.special_objects_list[self.maze-1]
+            walls = self.wall_list[self.maze-1]
 
             #Objects underneath the player
-            for so in self.special_objects_list[self.maze-1]:
+            for so in objs:
                 if isinstance(so,Portal):
                     if so.dest_id == None : # Tp goes nowhere -> image gets darker
                         self.screen.blit(so.img2,(so.x, so.y))
@@ -424,79 +435,77 @@ class Game :
             self.create("rect",self.player.x, self.player.y, self.player.width, self.player.width,(255,0,0))
 
             #Objects above the player
+            level_color = self.level_colors[self.maze]
             # Walls
             for wall in self.wall_list[self.maze-1]:
-                self.create("rect",wall.x1, wall.y1, wall.x2-wall.x1, wall.y2-wall.y1,self.level_colors[self.maze])
+                self.create("rect",wall.x1, wall.y1, wall.x2-wall.x1, wall.y2-wall.y1,level_color)
             # Activate fog of war (if needed)
             if self.maze in self.level_configs and self.level_configs[self.maze]["fow"]:
                 self.draw_fog()
             # Timer
-            seconds = round((pygame.time.get_ticks() - self.timer) / 1000, 2)
-            timer_text, timer_pos = make_text(self.assets["font_small"],"Time : "+str(seconds),(255,255,255),self.width-100,30)
+            timer_text, timer_pos = make_text(self.assets["font_small"],"Time : "+str(self.seconds),(255,255,255),self.width-100,30)
             self.screen.blit(timer_text,timer_pos)
 
         #Level selecting menu
         elif self.state == "LEVEL MENU" :
+
             #Level font color
-            font_color = self.font_color
             if self.level_menu == 67 :
                 font_color = invert_color(font_color)
-            #Current level
-            level = self.button_levels[self.level_menu-1]
+            else :
+                font_color = self.font_color
+            inv_font_color = invert_color(font_color)
+            #Current level color
             if self.level_menu in self.level_colors :
                 level_color = self.level_colors[self.level_menu]
             else :
                 level_color = self.second_font_color
+            
+            level = self.button_levels[self.level_menu-1]
+
+            # Center play button
+            self.create("rect",level.x, level.y, level.width, level.height,level_color)
+            self.create("rect",level.x + 20, level.y + 20, level.width - 40, level.height - 40,font_color)
+
+            # Level text display
+            t, tpos = self.level_texts[self.level_menu-1]
+            self.screen.blit(t, tpos)
+            
+            # PLAY text display
+            play_text, play_textpos = make_text(self.assets["font_main"],PLAY_TEXT,level_color,self.center_x,self.center_y)
+            self.screen.blit(play_text,play_textpos)
+
+            # Stars
             if self.level_menu in self.level_stars :
                 stars = self.level_stars[self.level_menu]
             else :
                 stars = 0
-            #Center play button
-            self.create("rect",level.x, level.y, level.width, level.height,level_color)
-            if self.level_menu == 67 :
-                self.create("rect",level.x + 20, level.y + 20, level.width - 40, level.height - 40,font_color)
-            else :
-                self.create("rect",level.x + 20, level.y + 20, level.width - 40, level.height - 40,font_color)
-            #Display the right level text
-            t, tpos = self.level_texts[self.level_menu-1]
-            self.screen.blit(t, tpos)
-            #Create the "PLAY" text here matching with the current level color
-            play_text, play_textpos = make_text(self.assets["font_main"],PLAY_TEXT,level_color,self.center_x,self.center_y)
-            current_level_stars_text, current_level_stars_textpos = make_text(self.assets["font_medium"],": "+str(stars),invert_color(font_color),self.center_x + 20,self.center_y + 200)
-            #Timer
-            timer_record_text, timer_record_textpos = make_text(self.assets["font_medium"],"Record : "+str(self.level_time[self.level_menu-1]),invert_color(font_color),self.center_x,self.center_y + 275)
-            #Additional level text if level has a name
-            if self.level_menu in self.level_names:
-                levelindex_text, levelindex_textpos = make_text(self.assets["font_small"],"Level "+str(self.level_menu),invert_color(font_color),self.center_x,100)
-                self.screen.blit(levelindex_text,levelindex_textpos)
-            #Display arrows
-            self.screen.blit(self.button_left_arrow.img,(self.button_left_arrow.x,self.button_left_arrow.y))
-            self.screen.blit(self.button_right_arrow.img,(self.button_right_arrow.x,self.button_right_arrow.y))
-            self.screen.blit(self.button_left_arrow2.img,(self.button_left_arrow2.x,self.button_left_arrow2.y))
-            self.screen.blit(self.button_right_arrow2.img,(self.button_right_arrow2.x,self.button_right_arrow2.y))
-            #Play text in the center
-            self.screen.blit(play_text,play_textpos)
-            #Stars reward
-            level_stars_text_width, _ = current_level_stars_text.get_size()
+            star_txt, star_pos = make_text(self.assets["font_medium"],": "+str(stars),inv_font_color,self.center_x + 20,self.center_y + 200)
+            star_txt_width, _ = star_txt.get_size()
             self.screen.blit(self.assets["star"],(self.center_x-75,self.center_y+175))
-            self.screen.blit(current_level_stars_text,(current_level_stars_textpos.left + level_stars_text_width/2 -25, current_level_stars_textpos.top))
-            if self.reward_collected[self.level_menu-1]:
+            self.screen.blit(star_txt,(star_pos.left + star_txt_width/2 -25, star_pos.top))
+
+            if self.reward_collected[self.level_menu-1]: #Checkmark
                 self.screen.blit(self.assets["completed"],(self.center_x-75,self.center_y+175))
-            #Timer record
-            self.screen.blit(timer_record_text,timer_record_textpos)
 
+            # Timer
+            rec_txt, rec_pos = make_text(self.assets["font_medium"],"Record : "+str(self.level_time[self.level_menu-1]),inv_font_color,self.center_x,self.center_y + 275)
+            self.screen.blit(rec_txt,rec_pos)
 
+            # Additional level text if level has a name
+            if self.level_menu in self.level_names:
+                levelindex_text, levelindex_textpos = make_text(self.assets["font_small"],"Level "+str(self.level_menu),inv_font_color,self.center_x,100)
+                self.screen.blit(levelindex_text,levelindex_textpos)
+            
+            # Arrows
+            for btn in [self.button_left_arrow, self.button_right_arrow, self.button_left_arrow2, self.button_right_arrow2]:
+                self.screen.blit(btn.img, (btn.x, btn.y))
 
         #Tutorial menus
-        elif self.state == "FRENCH TUTORIAL" :
-            for text, textpos in self.tutorial_fr :
-                self.screen.blit(text,textpos)
-                self.screen.blit(self.button_home.img, (self.button_home.x,self.button_home.y))
-        
-        elif self.state == "ENGLISH TUTORIAL" :
-            for text, textpos in self.tutorial_en :
-                self.screen.blit(text,textpos)
-                self.screen.blit(self.button_home.img, (self.button_home.x,self.button_home.y))
+        elif self.state in ["FRENCH TUTORIAL", "ENGLISH TUTORIAL"]:
+            texts = self.tutorial_fr if "FRENCH" in self.state else self.tutorial_en
+            for t, tp in texts: self.screen.blit(t, tp)
+            self.screen.blit(self.button_home.img, (self.button_home.x, self.button_home.y))
 
         #Victory menu
         elif self.state == "VICTORY MENU":
@@ -508,7 +517,7 @@ class Game :
 
         #Start menu
         elif self.state == "MAIN MENU":
-            #The self name
+            #The game name
             self.screen.blit(self.name_text, self.name_textpos)
             #Start button visual 
             self.create("rect",self.button_start.x, self.button_start.y, self.button_start.width, self.button_start.height,(255,255,0))
@@ -520,20 +529,16 @@ class Game :
             self.screen.blit(self.button_book_en.img,(self.button_book_en.x,self.button_book_en.y))
 
             # Star counter
-            self.stars_text_width, _ = self.stars_display.get_size()
+            stars_text_width, _ = self.stars_display.get_size()
             self.screen.blit(self.assets["star"],(25,25))
-            self.screen.blit(self.stars_display,(self.stars_displaypos.left + self.stars_text_width/2, self.stars_displaypos.top))
+            self.screen.blit(self.stars_display,(self.stars_displaypos.left + stars_text_width/2, self.stars_displaypos.top))
 
-        #Music display
-        if self.play_animation:
+        #Music display animation
+        if self.music_animation:
             if self.music_play :
                 self.screen.blit(self.assets["music_on"],(self.width - 75, 25))
             else :
                 self.screen.blit(self.assets["music_off"],(self.width - 75, 25))
             self.time_display -= self.dt
-            if self.time_display <= 0 :
-                self.play_animation = False
-        elif self.time_display != 100 :
-            self.time_display = 2.0
         
         pygame.display.flip()
