@@ -1,6 +1,6 @@
 import pygame
 from pygame.locals import*
-from .entities import Player, Door, Key, Trap, Winpad, Portal, Button
+from .entities import Player, Door, Key, Trap, Winpad, Portal, Button, Light, SubMapPortal
 from .utils import make_text, load_map, invert_color
 from .settings import*
 from .assets_manager import load_assets
@@ -53,7 +53,7 @@ class Game :
         self.level_configs = LEVEL_CONFIGS
         for level_nb in self.level_configs :
             self.level_configs[level_nb]["loaded"] = False # No level is loaded by default
-                
+        self.vision_radius = VISION_RADIUS
         # Progression
         self.nb_stars = 0
         self.level_time = ["--.--" for _ in range(self.nb_levels)]
@@ -167,11 +167,30 @@ class Game :
             fog_surf = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
             fog_surf.fill((0, 0, 0, 255)) 
 
-            for i in range(VISION_RADIUS, 0, -5):
-                alpha = int(255 * (i / VISION_RADIUS)) # Visibility is better in the center
+            for i in range(self.vision_radius, 0, -5):
+                alpha = int(255 * (i / self.vision_radius)) # Visibility is better in the center
                 pygame.draw.circle(fog_surf, (0, 0, 0, alpha), self.player.rect.center, i)
             
             self.screen.blit(fog_surf, (0, 0))
+
+    def load_sub_map(self, map_index):
+        config = self.level_configs[self.maze]
+        map_file = config["file"][map_index]
+        
+        # Change layout
+        layout = load_map(map_file)
+        # Create maze
+        current_maze = Maze(layout, config["tps"], self.player, self)
+        
+        # Modify global game values
+        self.level_map_list[self.maze-1] = layout
+        self.wall_list[self.maze-1] = current_maze.walls
+        self.special_objects_list[self.maze-1] = current_maze.special_objs
+        
+        # Window dimension updating
+        self.width = len(layout[0]) * self.tile_size
+        self.height = len(layout) * self.tile_size
+        self.screen = pygame.display.set_mode((self.width, self.height))
 
     def handle_events(self):
         for event in pygame.event.get():
@@ -216,6 +235,11 @@ class Game :
                         for level_id in range(len(self.button_levels)) :
                             if self.button_levels[level_id].is_pressed(MOUSE_X,MOUSE_Y) and self.level_menu == level_id+1:
 
+                                # Game state changes
+                                self.state = "MAZE"
+                                self.level_menu = 0
+                                self.maze = level_id + 1
+
                                 if level_id+1 in self.level_configs and not self.level_configs[level_id+1]["loaded"]: # Only loads a level when it is not loaded
 
                                     # Loading + Transition screen
@@ -230,18 +254,13 @@ class Game :
                                         layout = load_map(config["file"])                                
                                         current_maze = Maze(layout,config["tps"],self.player,self)
 
-                                        # Modify global self values
+                                        # Modify global game values
                                         self.level_map_list[level_id] = layout
                                         self.wall_list[level_id] = current_maze.walls
                                         self.special_objects_list[level_id] = current_maze.special_objs
                                         self.spawn_point_list[level_id] = current_maze.spawn_point
 
                                         self.level_configs[level_id+1]["loaded"] = True # Level has been loaded
-
-                                # Game state changes
-                                self.state = "MAZE"
-                                self.level_menu = 0
-                                self.maze = level_id + 1
 
                                 self.fade_to_black(self.width, self.height, 25) #Transition screen
 
@@ -251,7 +270,7 @@ class Game :
                                     self.screen = pygame.display.set_mode((self.width, self.height))
                                     self.center_x, self.center_y = self.screen.get_rect().centerx, self.screen.get_rect().centery
                                     
-                                    # Move self.player
+                                    # Move player
                                     if self.spawn_point_list[self.maze-1][0] != None :
                                         x,y = self.spawn_point_list[self.maze-1]
                                         self.player.move_spawn(x,y)
@@ -392,7 +411,25 @@ class Game :
                         so.open()
                 if isinstance(so,Trap) and so.is_touched(self.player): # Kill player and reset maze
                     self.reset(self.maze)
-        
+                if isinstance(so,Light) :
+                    if so.is_touched(self.player) and so.cooldown == 0.0: # Collect temporary torch
+                        so.collect()
+                        so.cooldown = TORCH_TIME
+                        self.vision_radius += TORCH_EFFECT
+                    # Update cooldown
+                    if 0.0 < so.cooldown <= TORCH_TIME :
+                        so.cooldown -= self.dt
+                        if so.cooldown <= 0.0 :
+                            so.cooldown = 0.0
+                            self.vision_radius -= TORCH_EFFECT
+                            so.respawn()
+                if isinstance(so, SubMapPortal) and so.is_touched(self.player):
+                    self.fade_to_black(self.width, self.height, 30) # Transition screen
+                    self.load_sub_map(so.target_map_index)
+                    # Teleport player
+                    self.player.teleport(so.spawn_pos[0], so.spawn_pos[1])
+                    break # Level updated, special_objects_list changed
+
         # Update tp recall time when it is on cooldown
         if self.recall_time > 0:
             self.recall_time -= self.dt
@@ -430,14 +467,19 @@ class Game :
                     self.create("rect",so.x1, so.y1, so.x2-so.x1, so.y2-so.y1,(255,255,0))
                 elif isinstance(so,Trap):
                     self.screen.blit(so.img,(so.x,so.y))
+                elif isinstance(so,Light) :
+                    if not so.collected:
+                        self.screen.blit(so.img,(so.x,so.y))
+                elif isinstance(so,SubMapPortal):
+                    self.screen.blit(so.img,(so.x,so.y))
 
             #The player
             self.create("rect",self.player.x, self.player.y, self.player.width, self.player.width,(255,0,0))
 
             #Objects above the player
-            level_color = self.level_colors[self.maze]
             # Walls
-            for wall in self.wall_list[self.maze-1]:
+            level_color = self.level_colors[self.maze]
+            for wall in walls :
                 self.create("rect",wall.x1, wall.y1, wall.x2-wall.x1, wall.y2-wall.y1,level_color)
             # Activate fog of war (if needed)
             if self.maze in self.level_configs and self.level_configs[self.maze]["fow"]:

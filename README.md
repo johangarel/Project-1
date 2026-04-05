@@ -25,7 +25,7 @@
 * Teleporters
 * Traps
 * Keyed doors
-* Fog of war system
+* Fog of war and light system
 * Timer and record time
 * Star system progression
 * A tutorial menu to help with the controls
@@ -85,7 +85,7 @@
 * Téléporteurs
 * Pièges
 * Portes à clés
-* Un système fog of war
+* Un système fog of war et de lumière
 * Chronomètre et temps record
 * Progression par système d'étoiles
 * Un menu tutoriel pour aider sur les touches

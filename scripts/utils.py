@@ -11,7 +11,10 @@ def make_text(font,txt,color,x,y):
     return t, tpos
 
 def load_map(filename):
+    if isinstance(filename,list):
+        filename = filename[0]
     path = get_path("levels",filename)
+    print(path)
     level_map = []
     file = open(path,"r")
     for line in file :
@@ -20,51 +23,38 @@ def load_map(filename):
 
 def optimise_walls(walls):
     if not walls:
-        return [] #When a level is empty
+        return []
 
-    #Extract rectangles
+    # Work on rectangles for optimization
     rects = [w.rect.copy() for w in walls]
+    
+    # Honrizontal fusion
+    rects.sort(key=lambda r: (r.y, r.x))
+    h_fused = []
+    if rects:
+        curr = rects[0]
+        for next_r in rects[1:]:
+            if next_r.y == curr.y and next_r.x == curr.x + curr.width and next_r.height == curr.height:
+                curr.width += next_r.width
+            else:
+                h_fused.append(curr)
+                curr = next_r
+        h_fused.append(curr)
 
-    #Honrizontal wall fusion
-    fusion_h = True
-    while fusion_h:
-        fusion_h = False
-        for i in range(len(rects)):
-            for j in range(i + 1, len(rects)):
-                r1 = rects[i]
-                r2 = rects[j]
-                if r1.y == r2.y and r1.height == r2.height: #Same Y level and same height
-                    if r1.x + r1.width == r2.x or r2.x + r2.width == r1.x: #Walls colliding each other
-                        new_rect = r1.union(r2)
-                        rects.pop(j)
-                        rects.pop(i)
-                        rects.append(new_rect)
-                        fusion_h = True
-                        break
-            if fusion_h: 
-                break
+    # Vertical fusion
+    h_fused.sort(key=lambda r: (r.x, r.y))
+    v_fused = []
+    if h_fused:
+        curr = h_fused[0]
+        for next_r in h_fused[1:]:
+            if next_r.x == curr.x and next_r.y == curr.y + curr.height and next_r.width == curr.width:
+                curr.height += next_r.height
+            else:
+                v_fused.append(curr)
+                curr = next_r
+        v_fused.append(curr)
 
-    #Vertical wall fusion
-    fusion_v = True
-    while fusion_v:
-        fusion_v = False
-        for i in range(len(rects)):
-            for j in range(i + 1, len(rects)):
-                r1 = rects[i]
-                r2 = rects[j]
-                if r1.x == r2.x and r1.width == r2.width: #Same X level and same width
-                    if r1.y + r1.height == r2.y or r2.y + r2.height == r1.y: #Walls colliding each other
-                        new_rect = r1.union(r2)
-                        rects.pop(j)
-                        rects.pop(i)
-                        rects.append(new_rect)
-                        fusion_v = True
-                        break
-            if fusion_v: 
-                break
-
-    #New walls into a new list
-    return [Wall(r.x, r.y, r.width, r.height) for r in rects]
+    return [Wall(r.x, r.y, r.width, r.height) for r in v_fused]
 
 def invert_color(rvb):
     r, v, b = rvb

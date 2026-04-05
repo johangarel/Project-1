@@ -1,5 +1,5 @@
 import pygame
-from .settings import TILE_SIZE
+from .settings import TILE_SIZE, TORCH_EFFECT
 from .assets_manager import load_assets
 
 ASSETS = load_assets()
@@ -175,13 +175,26 @@ class Portal:
         self.id = id
         self.dest_id = destination_id
 
-    def move_tp_1(self,x,y):
+    def move(self,x,y):
         self.x, self.y = x, y
 
     def is_touched(self,player):
         assert isinstance(player,Player)
         return self.x < player.x + player.width // 2 < self.x + self.width and self.y < player.y + player.width // 2 < self.y + self.width
-    
+
+class SubMapPortal:
+    def __init__(self, x, y, target_map_index, spawn_pos):
+        self.x, self.y = x, y
+        self.width = 50
+        self.rect = pygame.Rect(x, y, self.width, self.width)
+        self.target_map_index = target_map_index #Map index in "maps" in level config
+        self.spawn_pos = spawn_pos # Player spawn point in new map
+        self.img = ASSETS["tp3"] 
+
+    def is_touched(self, player):
+        assert isinstance(player,Player)
+        return self.x < player.x + player.width // 2 < self.x + self.width and self.y < player.y + player.width // 2 < self.y + self.width
+
 class Trap :
     def __init__(self,x,y):
         self.x,self.y = x,y
@@ -209,6 +222,25 @@ class Key :
         self.collected = True
     
     def reset(self):
+        self.collected = False
+
+class Light :
+    def __init__(self,x,y):
+        self.x,self.y = x,y
+        self.width = TILE_SIZE
+        self.collected = False
+        self.img = ASSETS["torch"]
+        self.effect = TORCH_EFFECT
+        self.cooldown = 0.0
+
+    def is_touched(self,player):
+        assert isinstance(player,Player)
+        return self.x < player.x + player.width // 2 < self.x + self.width and self.y < player.y + player.width // 2 < self.y + self.width
+
+    def collect(self):
+        self.collected = True
+    
+    def respawn(self):
         self.collected = False
 
 ### UI CLASSES

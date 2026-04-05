@@ -14,6 +14,11 @@ TP_WIDTH = 50
 WINPAD_WIDTH = 50
 VISION_RADIUS = 150
 
+TORCH_EFFECT = 400
+TORCH_TIME = 5.0
+
+WALL_THICKNESS = 10
+
 LEVEL_NAMES = {
     1:"Rooms", 
     2:"Trapped", 
@@ -70,10 +75,22 @@ TUTORIAL_EN_TEXT = [
     "Reset maze : R"
 ]
 
+# Mandatory if you want to create a new level
 LEVEL_CONFIGS = {
-    1: {"file": "level1.txt", "tps": [1, None, 3, None, 5, None], "fow":False},
-    2: {"file": "level2.txt", "tps": [None, 0, 1, 0, 3, 0], "fow":False},
-    3: {"file": "level3.txt", "tps": [1, 0, 5, 4, None, None], "fow":False},
-    4: {"file": "level4.txt", "tps": [1,2,3,0,None,None], "fow":True},
-    42: {"file": "level42.txt", "tps":[], "fow":False}
+    1: {"file": ["level1.txt"], "tps": [1, None, 3, None, 5, None], "fow":False},
+    2: {"file": ["level2.txt"], "tps": [None, 0, 1, 0, 3, 0], "fow":False},
+    3: {"file": ["level3_1.txt","level3_2.txt","level3_3.txt"], "tps": [1, 0, 5, 4, None, None], "fow":False},
+    4: {"file": ["level4.txt"], "tps": [], "fow":True},
+    42: {"file": ["level42.txt"], "tps":[], "fow":False}
 }
+
+# Optional step : create a sub map portal system
+SUBMAP_ROUTES = {
+    3: { # For level 3
+        0: {"target_map": 1, "spawn_pos": (100, 100)}, # The 1st 'S' leads to map index 1
+        1: {"target_map": 2, "spawn_pos": (50, 400)},  # The 2nd 'S' leads to map index 2
+    }
+}
+
+# Objects that walls shoudn't connect with
+BANNED_BUILDING_CHARACTERS = ["P","V","L","S"]

@@ -13,6 +13,7 @@ def load_assets():
             "winpad":pygame.image.load(get_path("assets","images","_crown_new.png")),
             "tp1":pygame.image.load(get_path("assets","images","_tp_new.png")),
             "tp2":pygame.image.load(get_path("assets","images","_tp2_new.png")),
+            "tp3":pygame.image.load(get_path("assets","images","_tp3_new.png")),
             "music_on":pygame.image.load(get_path("assets","images","MUSIC ON.png")),
             "music_off":pygame.image.load(get_path("assets","images","MUSIC OFF.png")),
             "home":pygame.image.load(get_path("assets","images","THE HOUSE.png")),
@@ -26,6 +27,7 @@ def load_assets():
             "key":pygame.image.load(get_path("assets","images","key.png")),
             "star":pygame.image.load(get_path("assets","images","STAR.png")),
             "completed":pygame.image.load(get_path("assets","images","YES.png")),
+            "torch":pygame.image.load(get_path("assets","images","Light.png")),
 
             "menu_music":pygame.mixer.Sound(get_path("assets","sounds","_cool_menu_music.mp3")),
             "music_victory":pygame.mixer.Sound(get_path("assets","sounds","_victory.mp3")),
