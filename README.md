@@ -26,6 +26,7 @@
 * Traps
 * Keyed doors
 * Fog of war and light system
+* Sub map system
 * Timer and record time
 * Star system progression
 * A tutorial menu to help with the controls
@@ -45,6 +46,8 @@
 &#x09;P = Player Spawn
 
 &#x09;T = Trap
+
+&#x09;S = Special teleporter (to load another map)
 
 &#x09;lower case letter = Key
 
@@ -85,6 +88,7 @@
 * Téléporteurs
 * Pièges
 * Portes à clés
+* Un système de sous-cartes
 * Un système fog of war et de lumière
 * Chronomètre et temps record
 * Progression par système d'étoiles
@@ -105,6 +109,8 @@
 &#x09;P = Point d'apparition du joueur
 
 &#x09;T = Piège
+
+&#x09;S = Téléporteur spécial (charger une autre carte)
 
 &#x09;Lettre minuscule = Clé
 

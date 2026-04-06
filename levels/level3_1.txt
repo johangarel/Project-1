@@ -1,21 +1,21 @@
-WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
-WPWS    W4      W   W       W3W
-W WWW W WWWWW WWW W W WTWWW W W
-W   W W       W   W   W   W W W
-WWW WTWWW WWWWW WWWWWWWWW W W W
-W0W W   W W     W   W     W W W
-W W W W WWW WWWWW W W WWWWW W W
-W W W W   W       W W   W   W W
-W W W WWW WWW WWWWWWWWW W WWW W
-W W W  5W     W       W W     W
-W W WWWWWWWWWWW WWWWW W WWWWWWW
-W W W     W   W W   W   W     W
-W W W WWW W W W W W WWWWW WWW W
-W   W   W W W W   W W     W W W
-W WWWWW W W W WWWWW W WWWWW W W
-W   W   W   W   W   W W     W W
-WWW W WWWWWWWWW W WWW W W WWW W
-W1W   W     W   W       W W   W
-W WWWWW W WWW WWWWWWWWWWWWW W W
-W       W                   W2W
-WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
+  WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW   
+ P  W     W   W                 W
+  W W WWW W WWW WWWWW WWWWWWWWWWW
+  W   W W W   W     W           W
+  WWWWW W W W W WWWWWWWWWWWWW W W
+  W       W W   W   W   W   W W W
+  W WWWWWWWWWWWWW W W W W W WWW W
+  W     W         W   W   W     W
+  WWWWW WWW WWWWWWWWWWWWWWWWWWW W
+  W   W   W W         W       W W
+  W W WWW W W WWWWWWW W WWWWW WWW
+  W W     W         W W     W   W
+  W WWWWWWWWWWWWWWW W W WWWWWWW W
+  W         W     W W   W       W
+  WWWWWWWWW W WWW W WWWWW WWWWW W
+  W       W W W   W     W W     W
+  W WWWWWWW W W WWWWW WWW W WWWWW
+  W   W   W   W     W W   W W   W
+  W W W W WWWWWWWWW WWW WWW W W W
+  W W   W               W     W   S
+  WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW

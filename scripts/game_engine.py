@@ -1,3 +1,4 @@
+import os
 import pygame
 from pygame.locals import*
 from .entities import Player, Door, Key, Trap, Winpad, Portal, Button, Light, SubMapPortal
@@ -107,15 +108,15 @@ class Game :
         if new_maze == 0:
             self.player.reset() #Player reset
             self.state = "MAIN MENU" #Return to main menu
+            self.fade_to_black(self.width,self.height,25) #Transition screen
         else :
+            self.load_sub_map(0)
             self.player.respawn() #Player respawn
         self.timer = pygame.time.get_ticks() #Timer reset
 
         # Reset menus
         self.maze = new_maze
         self.level_menu = 0
-
-        self.fade_to_black(self.width,self.height,25) #Transition screen
 
         if new_maze == 0:
             #Window resizing
@@ -180,16 +181,19 @@ class Game :
         # Change layout
         layout = load_map(map_file)
         # Create maze
-        current_maze = Maze(layout, config["tps"], self.player, self)
+        current_maze = Maze(layout, config["tps"], self.player, self, map_index=map_index)
         
         # Modify global game values
         self.level_map_list[self.maze-1] = layout
         self.wall_list[self.maze-1] = current_maze.walls
         self.special_objects_list[self.maze-1] = current_maze.special_objs
+
+        self.fade_to_black(self.width, self.height, 25) #Transition screen
         
         # Window dimension updating
         self.width = len(layout[0]) * self.tile_size
         self.height = len(layout) * self.tile_size
+        os.environ['SDL_VIDEO_WINDOW_POS'] = "center"
         self.screen = pygame.display.set_mode((self.width, self.height))
 
     def handle_events(self):
@@ -240,18 +244,17 @@ class Game :
                                 self.level_menu = 0
                                 self.maze = level_id + 1
 
-                                if level_id+1 in self.level_configs and not self.level_configs[level_id+1]["loaded"]: # Only loads a level when it is not loaded
+                                if level_id+1 in self.level_configs : # Level needs to be not empty
 
                                     # Loading + Transition screen
                                     self.fade_to_black(self.width, self.height, 25)
                                     self.screen.blit(self.loading_text,self.loading_textpos)
                                     pygame.display.flip()
 
-                                    if level_id+1 in self.level_configs : # Level needs to be not empty
-
+                                    if not self.level_configs[level_id+1]["loaded"]: # When the level is not loaded
                                         # Create maze
                                         config = self.level_configs[level_id+1]
-                                        layout = load_map(config["file"])                                
+                                        layout = load_map(config["file"][0]) #The first map is being loaded                            
                                         current_maze = Maze(layout,config["tps"],self.player,self)
 
                                         # Modify global game values
@@ -262,11 +265,15 @@ class Game :
 
                                         self.level_configs[level_id+1]["loaded"] = True # Level has been loaded
 
-                                self.fade_to_black(self.width, self.height, 25) #Transition screen
+                                        self.fade_to_black(self.width, self.height, 25)
+                                    
+                                    else : # When a level is loaded
+                                        self.load_sub_map(0)
 
                                 # Window dimension updating
                                 if self.level_map_list[self.maze-1] != None :
                                     self.width, self.height = len(self.level_map_list[self.maze-1][0])*self.tile_size, len(self.level_map_list[self.maze-1])*self.tile_size
+                                    os.environ['SDL_VIDEO_WINDOW_POS'] = "center"
                                     self.screen = pygame.display.set_mode((self.width, self.height))
                                     self.center_x, self.center_y = self.screen.get_rect().centerx, self.screen.get_rect().centery
                                     
@@ -424,7 +431,6 @@ class Game :
                             self.vision_radius -= TORCH_EFFECT
                             so.respawn()
                 if isinstance(so, SubMapPortal) and so.is_touched(self.player):
-                    self.fade_to_black(self.width, self.height, 30) # Transition screen
                     self.load_sub_map(so.target_map_index)
                     # Teleport player
                     self.player.teleport(so.spawn_pos[0], so.spawn_pos[1])

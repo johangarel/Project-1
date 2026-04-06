@@ -11,10 +11,7 @@ def make_text(font,txt,color,x,y):
     return t, tpos
 
 def load_map(filename):
-    if isinstance(filename,list):
-        filename = filename[0]
     path = get_path("levels",filename)
-    print(path)
     level_map = []
     file = open(path,"r")
     for line in file :

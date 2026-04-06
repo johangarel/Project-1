@@ -23,7 +23,7 @@ LEVEL_NAMES = {
     1:"Rooms", 
     2:"Trapped", 
     3:"Perfect Maze", 
-    4:"IMPOSSIBLE",
+    4:"Darker World",
     42:"The Answer",
     67:"heheheha",
     69:"Nice"
@@ -48,7 +48,7 @@ LEVEL_REWARD = {
     1:1,
     2:4,
     3:2,
-    4:99,
+    4:10,
     42:-42
 }
 
@@ -87,10 +87,15 @@ LEVEL_CONFIGS = {
 # Optional step : create a sub map portal system
 SUBMAP_ROUTES = {
     3: { # For level 3
-        0: {"target_map": 1, "spawn_pos": (100, 100)}, # The 1st 'S' leads to map index 1
-        1: {"target_map": 2, "spawn_pos": (50, 400)},  # The 2nd 'S' leads to map index 2
+        0: { # For level3_1.txt (Index 0)
+            0:{"target_map": 1, "spawn_pos": (TILE_SIZE,TILE_SIZE)} # The 1st 'S' leads to map index 1
+            },
+        1: { # For level3_2.txt (Index 1)
+            0:{"target_map": 2, "spawn_pos": (TILE_SIZE,TILE_SIZE)}, # The 1st 'S' leads to map index 2
+            1:{"target_map": 0, "spawn_pos": (TILE_SIZE, TILE_SIZE)}
+            },  
     }
 }
 
-# Objects that walls shoudn't connect with
+# Objects that walls shouldn't connect with
 BANNED_BUILDING_CHARACTERS = ["P","V","L","S"]

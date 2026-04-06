@@ -3,7 +3,7 @@ from .utils import optimise_walls
 from .settings import WALL_THICKNESS, BANNED_BUILDING_CHARACTERS, SUBMAP_ROUTES
 
 class Maze :
-    def __init__(self,layout,tp_order,player,game):
+    def __init__(self,layout,tp_order,player,game, map_index=0):
         assert isinstance(player,Player)
         self.special_objs = []
         self.spawn_point = player.default_pos
@@ -54,8 +54,10 @@ class Maze :
                 elif char == "S": # Sub map portal
                     config = None
                     level_id = game.maze
-                    if level_id in SUBMAP_ROUTES and self.sub_portal_count in SUBMAP_ROUTES[level_id]:
-                        config = SUBMAP_ROUTES[level_id][self.sub_portal_count]
+                    # Search path
+                    if level_id in SUBMAP_ROUTES and map_index in SUBMAP_ROUTES[level_id] and self.sub_portal_count in SUBMAP_ROUTES[level_id][map_index]:
+                        config = SUBMAP_ROUTES[level_id][map_index][self.sub_portal_count]
+                    # Create the portal if the path exists
                     if config:
                         portal = SubMapPortal(x, y, config["target_map"], config["spawn_pos"])
                         self.special_objs.append(portal)
