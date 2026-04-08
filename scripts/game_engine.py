@@ -111,7 +111,8 @@ class Game :
             self.fade_to_black(self.width,self.height,25) #Transition screen
         else :
             self.load_sub_map(0)
-            self.player.respawn() #Player respawn
+        if self.vision_radius != VISION_RADIUS :
+            self.vision_radius = VISION_RADIUS
         self.timer = pygame.time.get_ticks() #Timer reset
 
         # Reset menus
@@ -135,6 +136,11 @@ class Game :
                 self.sound_active.play()
                 if not self.music_play :
                     self.sound_active.set_volume(0)
+        else :
+            self.player.respawn() #Player respawn
+
+        # Time (reset finished)
+        self.clock.tick()
 
     def press_left_arrow(self):
         if self.level_menu == 1 :
@@ -187,6 +193,8 @@ class Game :
         self.level_map_list[self.maze-1] = layout
         self.wall_list[self.maze-1] = current_maze.walls
         self.special_objects_list[self.maze-1] = current_maze.special_objs
+        if self.vision_radius != VISION_RADIUS :
+            self.vision_radius = VISION_RADIUS
 
         self.fade_to_black(self.width, self.height, 25) #Transition screen
         
@@ -195,6 +203,9 @@ class Game :
         self.height = len(layout) * self.tile_size
         os.environ['SDL_VIDEO_WINDOW_POS'] = "center"
         self.screen = pygame.display.set_mode((self.width, self.height))
+
+        # Time
+        self.clock.tick()
 
     def handle_events(self):
         for event in pygame.event.get():
@@ -266,6 +277,9 @@ class Game :
                                         self.level_configs[level_id+1]["loaded"] = True # Level has been loaded
 
                                         self.fade_to_black(self.width, self.height, 25)
+
+                                        # Time
+                                        self.clock.tick()
                                     
                                     else : # When a level is loaded
                                         self.load_sub_map(0)
@@ -345,7 +359,8 @@ class Game :
                             self.fade_to_black(self.width, self.height, 25) 
 
     def update(self):
-        self.dt = self.clock.tick(self.fps) / 1000.0 #Time tracking
+        raw_dt = self.clock.tick(self.fps) / 1000.0
+        self.dt = min(raw_dt, 0.05) #Time tracking
         self.seconds = round((pygame.time.get_ticks() - self.timer) / 1000, 2)
         if self.state == "MAZE" :
             keys = pygame.key.get_pressed()

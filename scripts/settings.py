@@ -14,7 +14,7 @@ TP_WIDTH = 50
 WINPAD_WIDTH = 50
 VISION_RADIUS = 150
 
-TORCH_EFFECT = 400
+TORCH_EFFECT = 200
 TORCH_TIME = 5.0
 
 WALL_THICKNESS = 10
@@ -75,12 +75,12 @@ TUTORIAL_EN_TEXT = [
     "Reset maze : R"
 ]
 
-# Mandatory if you want to create a new level
+# Mandatory step if you want to create a new level
 LEVEL_CONFIGS = {
     1: {"file": ["level1.txt"], "tps": [1, None, 3, None, 5, None], "fow":False},
     2: {"file": ["level2.txt"], "tps": [None, 0, 1, 0, 3, 0], "fow":False},
     3: {"file": ["level3_1.txt","level3_2.txt","level3_3.txt"], "tps": [1, 0, 5, 4, None, None], "fow":False},
-    4: {"file": ["level4.txt"], "tps": [], "fow":True},
+    4: {"file": ["level4.txt","level4_2.txt","level4_3.txt","level4_4.txt"], "tps": [1,None,3,None,5,None], "fow":True},
     42: {"file": ["level42.txt"], "tps":[], "fow":False}
 }
 
@@ -94,6 +94,25 @@ SUBMAP_ROUTES = {
             0:{"target_map": 2, "spawn_pos": (TILE_SIZE,TILE_SIZE)}, # The 1st 'S' leads to map index 2
             1:{"target_map": 0, "spawn_pos": (TILE_SIZE, TILE_SIZE)}
             },  
+    },
+    4: {
+        0: {
+            1:{"target_map":3, "spawn_pos": (3*TILE_SIZE,13*TILE_SIZE)},
+            0:{"target_map":1, "spawn_pos": (12*TILE_SIZE,12*TILE_SIZE)}
+        },
+        1: {
+            0:{"target_map":1, "spawn_pos": (12*TILE_SIZE,12*TILE_SIZE)},
+            1:{"target_map":3, "spawn_pos": (3*TILE_SIZE,13*TILE_SIZE)},
+            2:{"target_map":0, "spawn_pos": (TILE_SIZE,11*TILE_SIZE)},
+            3:{"target_map":2, "spawn_pos": (15*TILE_SIZE,7*TILE_SIZE)},
+            4:{"target_map":0, "spawn_pos": (TILE_SIZE,11*TILE_SIZE)},
+        },
+        2: {
+            0:{"target_map":3, "spawn_pos": (25*TILE_SIZE,13*TILE_SIZE)}
+        },
+        3: {
+            0:{"target_map":0, "spawn_pos": (TILE_SIZE,11*TILE_SIZE)}
+        }
     }
 }
 
