@@ -1,3 +1,4 @@
+import pygame
 from .entities import Wall
 from .assets_manager import get_path
 
@@ -56,3 +57,9 @@ def optimise_walls(walls):
 def invert_color(rvb):
     r, v, b = rvb
     return (255 - r, 255 - v, 255 - b)
+
+def tint_image(surface, color):
+    """Retourne une copie de l'image colorée avec 'color'."""
+    tinted = surface.copy()
+    tinted.fill(color, special_flags=pygame.BLEND_RGBA_MULT)
+    return tinted

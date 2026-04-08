@@ -75,6 +75,16 @@ TUTORIAL_EN_TEXT = [
     "Reset maze : R"
 ]
 
+KEY_COLORS = {
+    'a': (255, 50, 50),   
+    'b': (50, 255, 50),   
+    'c': (50, 50, 255),   
+    'd': (255, 255, 50),  
+    'e': (255, 50, 255)
+}
+
+DEFAULT_KEY_COLOR = (200, 200, 200)
+
 # Mandatory step if you want to create a new level
 LEVEL_CONFIGS = {
     1: {"file": ["level1.txt"], "tps": [1, None, 3, None, 5, None], "fow":False},

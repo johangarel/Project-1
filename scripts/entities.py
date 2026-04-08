@@ -1,5 +1,5 @@
 import pygame
-from .settings import TILE_SIZE, TORCH_EFFECT
+from .settings import TILE_SIZE, TORCH_EFFECT, KEY_COLORS
 from .assets_manager import load_assets
 
 ASSETS = load_assets()
@@ -210,9 +210,10 @@ class Key :
     def __init__(self,x,y,id):
         self.x,self.y = x,y
         self.width = TILE_SIZE
-        self.img = ASSETS["key"]
         self.collected = False
         self.door_id = id
+        from .utils import tint_image
+        self.img = tint_image(ASSETS["key"],KEY_COLORS.get(self.door_id.lower(), (255, 255, 255)))
 
     def is_touched(self,player):
         assert isinstance(player,Player)

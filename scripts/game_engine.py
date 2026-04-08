@@ -96,7 +96,7 @@ class Game :
         for s in self.sound_list :
             if s != None :
                 s.set_volume(0.5)
-        self.sound_active.play()
+        self.sound_active.play(loops=-1)
 
     
     def reset(self,new_maze=0):
@@ -133,7 +133,7 @@ class Game :
                     self.sound_active.stop()
                     self.sound_active.set_volume(0.5)
                 self.sound_active = self.assets["menu_music"]
-                self.sound_active.play()
+                self.sound_active.play(loops=-1)
                 if not self.music_play :
                     self.sound_active.set_volume(0)
         else :
@@ -304,7 +304,7 @@ class Game :
                                 self.sound_active.set_volume(0.5)
                                 self.sound_active = self.sound_list[level_id]
                                 if self.sound_active != None :
-                                    self.sound_active.play()
+                                    self.sound_active.play(loops=-1)
                                     if not self.music_play :
                                         self.sound_active.set_volume(0)
                         
@@ -410,7 +410,7 @@ class Game :
                         self.sound_active.stop()
                     self.sound_active = self.assets["music_victory"]
                     self.sound_active.set_volume(0.5)
-                    self.sound_active.play()
+                    self.sound_active.play(loops=-1)
                     if not self.music_play :
                         self.sound_active.set_volume(0)
 
@@ -483,9 +483,11 @@ class Game :
                 elif isinstance(so,Winpad):
                     self.screen.blit(so.img,(so.x,so.y))
                 elif isinstance(so,Key) and not so.collected: #Display key if not collected
-                    self.screen.blit(so.img,(so.x,so.y))
+                    self.screen.blit(so.img, (so.x, so.y))
                 elif isinstance(so,Door) and not so.opened: #Display door if not opened
-                    self.create("rect",so.x1, so.y1, so.x2-so.x1, so.y2-so.y1,(255,255,0))
+                    color = KEY_COLORS.get(so.id.lower(), DEFAULT_KEY_COLOR)
+                    self.create("rect",so.x1, so.y1, so.x2-so.x1, so.y2-so.y1,color)
+                    pygame.draw.rect(self.screen, (0,0,0), so.rect, 2)
                 elif isinstance(so,Trap):
                     self.screen.blit(so.img,(so.x,so.y))
                 elif isinstance(so,Light) :
