@@ -48,7 +48,7 @@ LEVEL_REWARD = {
     1:1,
     2:4,
     3:2,
-    4:10,
+    4:8,
     42:-42
 }
 
@@ -57,7 +57,7 @@ GAME_TITLE = "MAZE 101 - v0.4"
 START_TEXT = "START"
 PLAY_TEXT = "PLAY"
 VICTORY_TEXT = "You win !"
-LOADING_TEXT = "Loading ..."
+LOADING_TEXT = "Loading..."
 
 TUTORIAL_FR_TEXT = [
     "Se déplacer : ZQSD",
@@ -107,18 +107,20 @@ SUBMAP_ROUTES = {
     },
     4: {
         0: {
-            1:{"target_map":3, "spawn_pos": (3*TILE_SIZE,13*TILE_SIZE)},
+            1:{"target_map":2, "spawn_pos": (15*TILE_SIZE,7*TILE_SIZE)},
             0:{"target_map":1, "spawn_pos": (12*TILE_SIZE,12*TILE_SIZE)}
         },
         1: {
             0:{"target_map":1, "spawn_pos": (12*TILE_SIZE,12*TILE_SIZE)},
-            1:{"target_map":3, "spawn_pos": (3*TILE_SIZE,13*TILE_SIZE)},
-            2:{"target_map":0, "spawn_pos": (TILE_SIZE,11*TILE_SIZE)},
+            1:{"target_map":3, "spawn_pos": (3*TILE_SIZE,17*TILE_SIZE)},
+            2:{"target_map":3, "spawn_pos": (3*TILE_SIZE,13*TILE_SIZE)},
             3:{"target_map":2, "spawn_pos": (15*TILE_SIZE,7*TILE_SIZE)},
             4:{"target_map":0, "spawn_pos": (TILE_SIZE,11*TILE_SIZE)},
         },
         2: {
-            0:{"target_map":3, "spawn_pos": (25*TILE_SIZE,13*TILE_SIZE)}
+            0:{"target_map":3, "spawn_pos": (25*TILE_SIZE,13*TILE_SIZE)},
+            1:{"target_map":0, "spawn_pos": (TILE_SIZE,11*TILE_SIZE)},
+            2:{"target_map":1, "spawn_pos": (20*TILE_SIZE,18*TILE_SIZE)}
         },
         3: {
             0:{"target_map":0, "spawn_pos": (TILE_SIZE,11*TILE_SIZE)}

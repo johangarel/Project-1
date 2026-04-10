@@ -16,6 +16,7 @@ class Player:
         self.win = False
         self.keys = []
         self.rect = pygame.Rect(x,y,width,width)
+        self.can_teleport = False
 
     def modify_speed(self,speed):
         self.speed = speed

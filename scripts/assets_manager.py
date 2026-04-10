@@ -36,6 +36,13 @@ def load_assets():
             "music_level3":pygame.mixer.Sound(get_path("assets","sounds","_level3.mp3")),
             "music_level4":pygame.mixer.Sound(get_path("assets","sounds","_level4.mp3")),
             "music_level42":pygame.mixer.Sound(get_path("assets","sounds","_level42.mp3")),
+
+            "sfx_death":pygame.mixer.Sound(get_path("assets","sounds","sfx","sfx_reset.ogg")),
+            "sfx_teleport":pygame.mixer.Sound(get_path("assets","sounds","sfx","sfx_teleport.ogg")),
+            "sfx_win":pygame.mixer.Sound(get_path("assets","sounds","sfx","sfx_win.ogg")),
+            "sfx_unlock":pygame.mixer.Sound(get_path("assets","sounds","sfx","sfx_unlock.ogg")),
+            "sfx_play":pygame.mixer.Sound(get_path("assets","sounds","sfx","sfx_play.ogg")),
+            "sfx_key":pygame.mixer.Sound(get_path("assets","sounds","sfx","sfx_key.ogg")),
             
             "font_main":pygame.font.Font(None, 144),
             "font_medium":pygame.font.Font(None, 64),

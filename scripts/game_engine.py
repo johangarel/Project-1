@@ -110,6 +110,7 @@ class Game :
             self.state = "MAIN MENU" #Return to main menu
             self.fade_to_black(self.width,self.height,25) #Transition screen
         else :
+            self.assets["sfx_death"].play()
             self.load_sub_map(0)
         if self.vision_radius != VISION_RADIUS :
             self.vision_radius = VISION_RADIUS
@@ -255,12 +256,14 @@ class Game :
                                 self.level_menu = 0
                                 self.maze = level_id + 1
 
-                                if level_id+1 in self.level_configs : # Level needs to be not empty
+                                self.assets["sfx_play"].play()
 
-                                    # Loading + Transition screen
-                                    self.fade_to_black(self.width, self.height, 25)
-                                    self.screen.blit(self.loading_text,self.loading_textpos)
-                                    pygame.display.flip()
+                                # Loading + Transition screen
+                                self.fade_to_black(self.width, self.height, 25)
+                                self.screen.blit(self.loading_text,self.loading_textpos)
+                                pygame.display.flip()
+
+                                if level_id+1 in self.level_configs : # Level needs to be not empty
 
                                     if not self.level_configs[level_id+1]["loaded"]: # When the level is not loaded
                                         # Create maze
@@ -387,12 +390,19 @@ class Game :
             self.player.move(dx, dy, obstacles, self) 
 
             #Interacting with a special object
+            portal_contact = False
             for so in self.special_objects_list[self.maze-1]:
                 if isinstance(so,Portal) and so.is_touched(self.player): # Use portal
-                    if self.recall_time <= 0: # To prevent infinite teleportations
+                    portal_contact = True
+                    if self.player.can_teleport : # To prevent infinite teleportations
+                        if so.dest_id != None and so.id != so.dest_id:
+                            self.assets["sfx_teleport"].play()
                         self.player.use_portal(so,self.special_objects_list[self.maze-1])
-                        self.recall_time = 1.0
+                        self.player.can_teleport = False
+                        break # To prevent errors
+
                 if isinstance(so,Winpad) and so.is_touched(self.player) and not self.player.win: # Win
+                    self.assets["sfx_win"].play()
                     self.player.victory()
                     self.fade_to_black(self.width,self.height,25) # Transition screen
 
@@ -427,13 +437,19 @@ class Game :
                     self.final_timer_text, self.final_timer_textpos = make_text(self.assets["font_main"],"Time : "+str(self.seconds),(255,255,255),self.center_x,self.center_y)
 
                 if isinstance(so,Key) and not so.collected and so.is_touched(self.player): #Collect key
+                    self.assets["sfx_key"].play()
                     self.player.pick_up_key(so)
-                if isinstance(so,Door) and not so.opened and so.rect.inflate(10,10).colliderect(self.player.rect): # Open door if self.player has the keys 
-                    if so.id in self.player.keys : 
+
+                if isinstance(so,Door) and not so.opened and so.rect.inflate(10,10).colliderect(self.player.rect): # Open door if player has the keys 
+                    if so.id in self.player.keys :
+                        self.assets["sfx_unlock"].play() 
                         so.open()
+
                 if isinstance(so,Trap) and so.is_touched(self.player): # Kill player and reset maze
                     self.reset(self.maze)
-                if isinstance(so,Light) :
+                    break # Map possibly changed
+
+                if isinstance(so,Light) : # Increase player vision
                     if so.is_touched(self.player) and so.cooldown == 0.0: # Collect temporary torch
                         so.collect()
                         so.cooldown = TORCH_TIME
@@ -445,15 +461,17 @@ class Game :
                             so.cooldown = 0.0
                             self.vision_radius -= TORCH_EFFECT
                             so.respawn()
-                if isinstance(so, SubMapPortal) and so.is_touched(self.player):
+
+                if isinstance(so, SubMapPortal) and so.is_touched(self.player): # Load another sub map in the level
                     self.load_sub_map(so.target_map_index)
                     # Teleport player
-                    self.player.teleport(so.spawn_pos[0], so.spawn_pos[1])
+                    self.assets["sfx_teleport"].play()
+                    self.player.teleport(so.spawn_pos[0] + (self.player.width/2), so.spawn_pos[1] + (self.player.width/2))
                     break # Level updated, special_objects_list changed
-
-        # Update tp recall time when it is on cooldown
-        if self.recall_time > 0:
-            self.recall_time -= self.dt
+        
+            # Player exited a portal, he can now reenter one
+            if not portal_contact :
+                self.player.can_teleport = True
         
         # Update music animation
         if self.music_animation and self.time_display <= 0 :
