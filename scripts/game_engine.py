@@ -2,7 +2,7 @@ import os
 import pygame
 from pygame.locals import*
 from .entities import Player, Door, Key, Trap, Winpad, Portal, Button, Light, SubMapPortal
-from .utils import make_text, load_map, invert_color
+from .utils import make_text, load_map, invert_color, generate_custom_maze
 from .settings import*
 from .assets_manager import load_assets
 from .maze import Maze
@@ -183,10 +183,25 @@ class Game :
 
     def load_sub_map(self, map_index):
         config = self.level_configs[self.maze]
-        map_file = config["file"][map_index]
+
+        # LEVEL 3 RANDOMIZER
+        if self.maze == 3:
+            if map_index == 0: #3_1
+                layout = generate_custom_maze(31, 21, ('P', 0, 1), ('S', 30, 19))
+            elif map_index == 1: #3_2
+                layout = generate_custom_maze(31, 21, (' ', 0, 1), ('S', 30, 1))
+                # Add a second sub map portal
+                row_list = list(layout[19])
+                row_list[30] = 'S'
+                layout[19] = "".join(row_list)
+            elif map_index == 2: # 3_3
+                layout = generate_custom_maze(31, 21, (' ', 0, 1), ('V', 30, 19))
+            self.player.move_spawn(TILE_SIZE/4,TILE_SIZE) # Player spawn
         
-        # Change layout
-        layout = load_map(map_file)
+        # Normal loading
+        else:
+            map_file = config["file"][map_index]
+            layout = load_map(map_file)
         # Create maze
         current_maze = Maze(layout, config["tps"], self.player, self, map_index=map_index)
         
@@ -264,8 +279,9 @@ class Game :
                                 pygame.display.flip()
 
                                 if level_id+1 in self.level_configs : # Level needs to be not empty
+                                    
+                                    if not self.level_configs[level_id+1]["loaded"] and self.maze != 3: # When the level is not loaded + Not level 3 (which has a special loading type)
 
-                                    if not self.level_configs[level_id+1]["loaded"]: # When the level is not loaded
                                         # Create maze
                                         config = self.level_configs[level_id+1]
                                         layout = load_map(config["file"][0]) #The first map is being loaded                            

@@ -89,7 +89,7 @@ DEFAULT_KEY_COLOR = (200, 200, 200)
 LEVEL_CONFIGS = {
     1: {"file": ["level1.txt"], "tps": [1, None, 3, None, 5, None], "fow":False},
     2: {"file": ["level2.txt"], "tps": [None, 0, 1, 0, 3, 0], "fow":False},
-    3: {"file": ["level3_1.txt","level3_2.txt","level3_3.txt"], "tps": [1, 0, 5, 4, None, None], "fow":False},
+    3: {"file": [], "tps": [1, 0, 5, 4, None, None], "fow":False},
     4: {"file": ["level4.txt","level4_2.txt","level4_3.txt","level4_4.txt"], "tps": [1,None,3,None,5,None], "fow":True},
     42: {"file": ["level42.txt"], "tps":[], "fow":False}
 }

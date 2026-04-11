@@ -1,4 +1,5 @@
 import pygame
+import random
 from .entities import Wall
 from .assets_manager import get_path
 
@@ -59,7 +60,47 @@ def invert_color(rvb):
     return (255 - r, 255 - v, 255 - b)
 
 def tint_image(surface, color):
-    """Retourne une copie de l'image colorée avec 'color'."""
+    """Returns a copy of the surface tinted with the given color."""
     tinted = surface.copy()
     tinted.fill(color, special_flags=pygame.BLEND_RGBA_MULT)
     return tinted
+
+def generate_custom_maze(width, height, entry_info, exit_info):
+    """
+    entry_info/exit_info : tuple (char, x, y)
+    """
+    # Create grid
+    grid = [['W' for _ in range(width)] for _ in range(height)]
+
+    # Create maze by DFS
+    def carve(x, y):
+        grid[y][x] = ' '
+        directions = [(0, 2), (0, -2), (2, 0), (-2, 0)]
+        random.shuffle(directions)
+        for dx, dy in directions:
+            nx, ny = x + dx, y + dy
+            if 0 < nx < width-1 and 0 < ny < height-1 and grid[ny][nx] == 'W':
+                grid[y + dy // 2][x + dx // 2] = ' '
+                carve(nx, ny)
+
+    carve(1, 1)
+
+    # Entry placement
+    e_char, ex, ey = entry_info
+    grid[ey][ex] = e_char
+    # Open the maze's entry
+    if ex == 0: 
+        grid[ey][ex+1] = ' '
+    elif ex == width-1: 
+        grid[ey][ex-1] = ' '
+
+    # Exit(s) placement(s)
+    s_char, sx, sy = exit_info
+    grid[sy][sx] = s_char
+    # Open the maze's exit
+    if sx == 0: 
+        grid[sy][sx+1] = ' '
+    elif sx == width-1: 
+        grid[sy][sx-1] = ' '
+
+    return ["".join(row) for row in grid]
