@@ -61,6 +61,7 @@ class Game :
         self.reward_collected = [False for _ in range(self.nb_levels)]
         # More
         self.center_x, self.center_y = self.screen.get_rect().centerx, self.screen.get_rect().centery
+        self.fade_speed = FADE_SPEED
         # Text
         self.name_text, self.name_textpos = make_text(self.assets["font_main"],GAME_NAME,(255, 255, 255),self.center_x,self.center_y - 200)
 
@@ -108,7 +109,7 @@ class Game :
         if new_maze == 0:
             self.player.reset() #Player reset
             self.state = "MAIN MENU" #Return to main menu
-            self.fade_to_black(self.width,self.height,25) #Transition screen
+            self.fade_to_black(self.width,self.height,self.fade_speed["normal"]) #Transition screen
         else :
             self.assets["sfx_death"].play()
             self.load_sub_map(0)
@@ -161,7 +162,7 @@ class Game :
             r,g,b = color
             self.screen.fill(pygame.Color(r,g,b),obj)
     
-    def fade_to_black(self, width, height, speed=5):
+    def fade_to_black(self, width, height, speed=10):
         fade_surface = pygame.Surface((width, height))
         fade_surface.fill((0, 0, 0))
         #Modify alpha rapidly
@@ -212,7 +213,7 @@ class Game :
         if self.vision_radius != VISION_RADIUS :
             self.vision_radius = VISION_RADIUS
 
-        self.fade_to_black(self.width, self.height, 25) #Transition screen
+        self.fade_to_black(self.width, self.height, self.fade_speed["normal"]) #Transition screen
         
         # Window dimension updating
         self.width = len(layout[0]) * self.tile_size
@@ -274,7 +275,7 @@ class Game :
                                 self.assets["sfx_play"].play()
 
                                 # Loading + Transition screen
-                                self.fade_to_black(self.width, self.height, 25)
+                                self.fade_to_black(self.width, self.height, self.fade_speed["normal"])
                                 self.screen.blit(self.loading_text,self.loading_textpos)
                                 pygame.display.flip()
 
@@ -295,7 +296,7 @@ class Game :
 
                                         self.level_configs[level_id+1]["loaded"] = True # Level has been loaded
 
-                                        self.fade_to_black(self.width, self.height, 25)
+                                        self.fade_to_black(self.width, self.height, self.fade_speed["normal"])
 
                                         # Time
                                         self.clock.tick()
@@ -348,17 +349,17 @@ class Game :
                     elif self.state == "FRENCH TUTORIAL" :
                         if self.button_home.is_pressed(MOUSE_X,MOUSE_Y):
                             self.state = "MAIN MENU"
-                            self.fade_to_black(self.width,self.height,25)
+                            self.fade_to_black(self.width,self.height,self.fade_speed["normal"])
                     
                     elif self.state == "ENGLISH TUTORIAL":
                         if self.button_home.is_pressed(MOUSE_X,MOUSE_Y):
                             self.state = "MAIN MENU"
-                            self.fade_to_black(self.width,self.height,25)
+                            self.fade_to_black(self.width,self.height,self.fade_speed["normal"])
 
                     elif self.state == "VICTORY MENU" :
                         if self.button_home.is_pressed(MOUSE_X,MOUSE_Y):
                             self.state = "MAIN MENU"
-                            self.fade_to_black(self.width,self.height,25)
+                            self.fade_to_black(self.width,self.height,self.fade_speed["normal"])
                             self.reset()
 
                     elif self.state == "MAIN MENU":
@@ -366,16 +367,16 @@ class Game :
                         if self.button_start.is_pressed(MOUSE_X, MOUSE_Y):
                             self.state = "LEVEL MENU"
                             self.level_menu = 1
-                            self.fade_to_black(self.width,self.height,25)
+                            self.fade_to_black(self.width,self.height,self.fade_speed["normal"])
                         
                         # "Book" buttons goes to their respectives menus
                         if self.button_book_fr.is_pressed(MOUSE_X,MOUSE_Y):
                             self.state = "FRENCH TUTORIAL"
-                            self.fade_to_black(self.width, self.height, 25) 
+                            self.fade_to_black(self.width, self.height, self.fade_speed["normal"]) 
                         
                         if self.button_book_en.is_pressed(MOUSE_X,MOUSE_Y):
                             self.state = "ENGLISH TUTORIAL"
-                            self.fade_to_black(self.width, self.height, 25) 
+                            self.fade_to_black(self.width, self.height, self.fade_speed["normal"]) 
 
     def update(self):
         raw_dt = self.clock.tick(self.fps) / 1000.0
@@ -420,7 +421,7 @@ class Game :
                 if isinstance(so,Winpad) and so.is_touched(self.player) and not self.player.win: # Win
                     self.assets["sfx_win"].play()
                     self.player.victory()
-                    self.fade_to_black(self.width,self.height,25) # Transition screen
+                    self.fade_to_black(self.width,self.height,self.fade_speed["slow"]) # Transition screen
 
                     # Stars
                     if not self.reward_collected[self.maze-1]:

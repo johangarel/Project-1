@@ -19,6 +19,12 @@ TORCH_TIME = 5.0
 
 WALL_THICKNESS = 10
 
+FADE_SPEED = {
+    "slow":10,
+    "normal":25,
+    "fast":50
+}
+
 LEVEL_NAMES = {
     1:"Rooms", 
     2:"Trapped", 

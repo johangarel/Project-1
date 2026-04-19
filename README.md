@@ -63,6 +63,10 @@
 
 
 
+* You can optionally create multiple maps for a level; to do this, fill up the SUBMAP\_ROUTES variable using the same method as for previous levels.
+
+
+
 ***---------------------------------------------------------------------------------------------------------------------------***
 
 ### ***FRANCAIS :***
@@ -123,6 +127,10 @@
 
 
 * Ensuite, allez dans scripts/ et ouvrez le fichier python settings.py, puis modifiez la variable LEVEL\_CONFIGS. Procédez comme pour les niveaux précédents : indiquez le numéro du niveau, le fichier texte du niveau , une liste de téléporteurs et si vous voulez activer l'option "fog of war". Pour créer une liste de téléporteurs, ajoutez l'index du portail de destination à l'index du portail d'entrée dans la liste. Par exemple, si vous souhaitez que le téléporteur 0 mène au téléporteur 1, mettez 1 à l'index 0 dans la liste des téléporteurs.
+
+
+
+* Vous pouvez éventuellement créer plusieurs cartes pour un niveau, pour faire cela, remplissez la variable SUBMAP\_ROUTES avec le même fonctionnement que les niveaux précédents pour les lier entre eux
 
 &#x20;
 
