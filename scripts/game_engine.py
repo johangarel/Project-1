@@ -562,10 +562,9 @@ class Game :
         elif self.state == "LEVEL MENU" :
 
             #Level font color
+            font_color = self.font_color
             if self.level_menu == 67 :
                 font_color = invert_color(font_color)
-            else :
-                font_color = self.font_color
             inv_font_color = invert_color(font_color)
             #Current level color
             if self.level_menu in self.level_colors :
