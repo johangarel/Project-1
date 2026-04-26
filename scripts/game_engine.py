@@ -6,6 +6,7 @@ from .utils import make_text, load_map, invert_color, generate_custom_maze
 from .settings import*
 from .assets_manager import load_assets
 from .maze import Maze
+from .save_manager import load_game, save_game
 
 class Game :
     def __init__(self):
@@ -55,10 +56,14 @@ class Game :
         for level_nb in self.level_configs :
             self.level_configs[level_nb]["loaded"] = False # No level is loaded by default
         self.vision_radius = VISION_RADIUS
-        # Progression
-        self.nb_stars = 0
+        # Progression / Saves
+        self.save_data = load_game()
+        self.nb_stars = self.save_data["total_stars"]
         self.level_time = ["--.--" for _ in range(self.nb_levels)]
         self.reward_collected = [False for _ in range(self.nb_levels)]
+        for level_id in self.save_data["levels"]:
+            self.level_time[int(level_id)-1] = self.save_data["levels"][level_id]["best_time"]
+            self.reward_collected[int(level_id)-1] = True
         # More
         self.center_x, self.center_y = self.screen.get_rect().centerx, self.screen.get_rect().centery
         self.fade_speed = FADE_SPEED
@@ -432,6 +437,9 @@ class Game :
                     if self.level_time[self.maze-1] == "--.--" or self.seconds < self.level_time[self.maze-1]: #Record
                         self.level_time[self.maze-1] = self.seconds
 
+                    # Save
+                    self.save_progression(self.maze,self.nb_stars,self.level_time[self.maze-1])
+
                     # Music
                     if self.sound_active != None :
                         self.sound_active.stop()
@@ -452,6 +460,7 @@ class Game :
 
                     # Text
                     self.final_timer_text, self.final_timer_textpos = make_text(self.assets["font_main"],"Time : "+str(self.seconds),(255,255,255),self.center_x,self.center_y)
+
 
                 if isinstance(so,Key) and not so.collected and so.is_touched(self.player): #Collect key
                     self.assets["sfx_key"].play()
@@ -536,7 +545,10 @@ class Game :
 
             #Objects above the player
             # Walls
-            level_color = self.level_colors[self.maze]
+            if self.maze in self.level_colors :
+                level_color = self.level_colors[self.maze]
+            else :
+                level_color = (255,255,255)
             for wall in walls :
                 self.create("rect",wall.x1, wall.y1, wall.x2-wall.x1, wall.y2-wall.y1,level_color)
             # Activate fog of war (if needed)
@@ -642,3 +654,16 @@ class Game :
             self.time_display -= self.dt
         
         pygame.display.flip()
+    
+    def save_progression(self, level_id, stars, time_spent):
+        if str(level_id) not in self.save_data["levels"]:
+            self.save_data["levels"][str(level_id)] = {"best_time": float('inf')}
+        
+        self.save_data["total_stars"] = stars
+        
+        if time_spent < self.save_data["levels"][str(level_id)]["best_time"]:
+            self.save_data["levels"][str(level_id)]["best_time"] = time_spent
+        
+        save_game(self.save_data)
+
+        
