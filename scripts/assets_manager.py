@@ -1,7 +1,13 @@
 import pygame
 import os
+import sys
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if getattr(sys, 'frozen', False):
+    # .exe
+    BASE_DIR = os.path.dirname(sys.executable)
+else:
+    # coding
+    BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 def get_path(*relative_path):
     return os.path.join(BASE_DIR, *relative_path)
