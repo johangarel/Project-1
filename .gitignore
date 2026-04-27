@@ -4,3 +4,4 @@ save.json
 build/
 dist/
 *.spec
+build_game.bat
