@@ -12,7 +12,7 @@ def make_text(font,txt,color,x,y):
     tpos.centery = y
     return t, tpos
 
-def load_map(filename):
+def load_map(filename) -> list :
     path = get_path("levels",filename)
     level_map = []
     file = open(path,"r")
@@ -20,7 +20,7 @@ def load_map(filename):
         level_map.append(line.rstrip('\n'))
     return level_map
 
-def optimise_walls(walls):
+def optimise_walls(walls) -> list :
     if not walls:
         return []
 
@@ -65,7 +65,7 @@ def tint_image(surface, color):
     tinted.fill(color, special_flags=pygame.BLEND_RGBA_MULT)
     return tinted
 
-def generate_custom_maze(width, height, entry_info, exit_info):
+def generate_custom_maze(width, height, entry_info, exit_info) -> list:
     """
     entry_info/exit_info : tuple (char, x, y)
     """

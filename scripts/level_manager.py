@@ -1,10 +1,8 @@
-import os
-import pygame
-from .entities import Key, Door, Light
+from .entities import Key, Door
 from .maze import Maze
 from .utils import load_map, generate_custom_maze
 from .settings import (
-    NB_LEVELS, TILE_SIZE, VISION_RADIUS, SUBMAP_ROUTES, LEVEL_CONFIGS
+    NB_LEVELS, TILE_SIZE, VISION_RADIUS
 )
 
 

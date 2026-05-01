@@ -49,6 +49,11 @@ def load_assets():
             "sfx_unlock":pygame.mixer.Sound(get_path("assets","sounds","sfx","sfx_unlock.ogg")),
             "sfx_play":pygame.mixer.Sound(get_path("assets","sounds","sfx","sfx_play.ogg")),
             "sfx_key":pygame.mixer.Sound(get_path("assets","sounds","sfx","sfx_key.ogg")),
+            "sfx_walk1":pygame.mixer.Sound(get_path("assets","sounds","sfx","sfx_walk1.ogg")),
+            "sfx_walk2":pygame.mixer.Sound(get_path("assets","sounds","sfx","sfx_walk2.ogg")),
+            "sfx_walk3":pygame.mixer.Sound(get_path("assets","sounds","sfx","sfx_walk3.ogg")),
+            "sfx_walk4":pygame.mixer.Sound(get_path("assets","sounds","sfx","sfx_walk4.ogg")),
+            "sfx_light":pygame.mixer.Sound(get_path("assets","sounds","sfx","sfx_light.ogg")),
             
             "font_main":pygame.font.Font(None, 144),
             "font_medium":pygame.font.Font(None, 64),

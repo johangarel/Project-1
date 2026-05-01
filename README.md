@@ -14,8 +14,7 @@
 
 ##### **How to play:**
 
-* Install Pygame using the command: `py -3.6 -m pip install pygame` OR `python -m pip install pygame`
-* Run main.py
+* Open Project1.exe
 
 \---------------------------------------------------------------------------------------------------------------------------
 
@@ -81,8 +80,7 @@
 
 ##### **Comment jouer :**
 
-* Installer pygame via la commande : `py -3.6 -m pip install pygame` OU `python -m pip install pygame`
-* Exécutez main.py
+* Ouvrir Project1.exe
 
 \---------------------------------------------------------------------------------------------------------------------------
 

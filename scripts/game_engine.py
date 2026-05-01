@@ -2,16 +2,16 @@ import os
 import pygame
 from pygame.locals import *
 
-from .entities import Player, Door, Key, Trap, Winpad, Portal, Button, Light, SubMapPortal
+from .entities import Player, Door, Key, Trap, Winpad, Portal, ButtonUI, Light, SubMapPortal
 from .utils import make_text, invert_color
 from .settings import (
     WIDTH, HEIGHT, NB_LEVELS, TILE_SIZE, FPS,
-    PLAYER_SPEED, PLAYER_WIDTH, VISION_RADIUS,
+    PLAYER_SPEED, PLAYER_WIDTH, PLAYER_DEFAULT_POS,
     FADE_SPEED, LEVEL_NAMES, LEVEL_COLORS, LEVEL_REWARD,
     LEVEL_CONFIGS, TORCH_EFFECT, TORCH_TIME,
-    GAME_NAME, GAME_VERSION, START_TEXT, PLAY_TEXT,
+    GAME_NAME, GAME_VERSION, START_TEXT, PLAY_TEXT, RECORD_TEXT,
     VICTORY_TEXT, LOADING_TEXT, TUTORIAL_FR_TEXT, TUTORIAL_EN_TEXT,
-    KEY_COLORS, DEFAULT_KEY_COLOR,
+    KEY_COLORS, DEFAULT_KEY_COLOR, 
 )
 from .assets_manager import load_assets
 from .audio_manager import AudioManager
@@ -52,10 +52,10 @@ class Game:
         self.progress  = ProgressManager(NB_LEVELS)
         self.audio     = AudioManager(self.assets, {"music": self.progress.music_on})
         self.levels    = LevelManager(
-            player=Player(self.center_x - PLAYER_WIDTH / 2, self.height - 50, PLAYER_SPEED, PLAYER_WIDTH),
+            player=Player(PLAYER_DEFAULT_POS, PLAYER_SPEED, PLAYER_WIDTH),
             level_configs={k: dict(v) for k, v in LEVEL_CONFIGS.items()},
         )
-        self.player = self.levels._player   # convenient shortcut
+        self.player: Player = self.levels._player   # convenient shortcut
 
         # --- Game state ---
         self.state      = GameState.MAIN_MENU
@@ -64,11 +64,12 @@ class Game:
         self.active     = True
 
         # --- Timing ---
-        self.clock   = pygame.time.Clock()
-        self.fps     = FPS
-        self.dt      = 0.0
-        self.timer   = 0
-        self.seconds = 0.0
+        self.clock      = pygame.time.Clock()
+        self.fps        = FPS
+        self.dt         = 0.0
+        self.timer      = 0
+        self.seconds    = 0.0
+        self.walk_timer = 0.0
 
         # --- UI Colors ---
         self.font_color        = (0, 0, 0)
@@ -169,6 +170,7 @@ class Game:
     def update(self):
         raw_dt = self.clock.tick(self.fps) / 1000.0
         self.dt = min(raw_dt, 0.05)
+        x,y = self.player.x, self.player.y
 
         self.audio.update(self.dt)
 
@@ -192,6 +194,16 @@ class Game:
                 walls.append(obj)
 
         self.player.move(dx, dy, walls, self)
+
+        # Walking sfx
+        if self.walk_timer <= 0.0 :
+            if (x != self.player.x or y != self.player.y):
+                self.audio.play_sfx(self.audio.next_walk_sfx)
+                self.audio.decide_next_walk_sfx()
+                self.walk_timer = 0.3
+        else :
+            self.walk_timer -= self.dt
+
         self._process_objects()
 
     def _process_objects(self):
@@ -234,6 +246,7 @@ class Game:
             elif isinstance(obj, Light):
                 if obj.is_touched(self.player) and obj.cooldown == 0.0:
                     obj.collect()
+                    self.audio.play_sfx("sfx_light")
                     obj.cooldown = TORCH_TIME
                     self.levels.vision_radius += TORCH_EFFECT
                 if 0.0 < obj.cooldown <= TORCH_TIME:
@@ -264,9 +277,9 @@ class Game:
     def render(self):
         # Background
         if self.maze == 67 or self.level_menu == 67:
-            self.screen.fill((255, 255, 255))
+            self.screen.fill(self.second_font_color)
         else:
-            self.screen.fill((0, 0, 0))
+            self.screen.fill(self.font_color)
 
         if self.state == GameState.MAZE:
             self._render_maze()
@@ -557,7 +570,7 @@ class Game:
             a["font_small"], GAME_VERSION, (255, 255, 255),
             self.width - 25 - 6 * len(GAME_VERSION), 25)
         self.record_txt, self.record_pos = make_text(
-            a["font_medium"], "New record !", (255, 255, 255), cx, cy + 75)
+            a["font_medium"], RECORD_TEXT, (255, 255, 255), cx, cy + 75)
         self.display_record_txt = False
 
         # Level texts
@@ -566,7 +579,7 @@ class Game:
             for n in range(NB_LEVELS)
         ]
         for lvl_id, name in LEVEL_NAMES.items():
-            color = (0, 0, 0) if lvl_id == 67 else (255, 255, 255)
+            color = self.font_color if lvl_id == 67 else self.second_font_color
             self.level_texts[lvl_id - 1] = make_text(a["font_main"], name, color, cx, cy - 200)
 
         # Tutorials
@@ -584,12 +597,12 @@ class Game:
             a["font_main"], "", (255, 255, 255), cx, cy)
 
         # Buttons
-        self.button_start        = Button(cx, cy, 400, 150, None)
-        self.button_book_fr      = Button(100, self.height - 100, 100, 100, a["tutorial_fr"])
-        self.button_book_en      = Button(250, self.height - 100, 100, 100, a["tutorial_en"])
-        self.button_right_arrow  = Button(self.width - 100, cy - 50, 50, 50, a["right_arrow"])
-        self.button_left_arrow   = Button(100, cy - 50, 50, 50, a["left_arrow"])
-        self.button_right_arrow2 = Button(self.width - 100, cy + 50, 50, 50, a["right_double_arrow"])
-        self.button_left_arrow2  = Button(100, cy + 50, 50, 50, a["left_double_arrow"])
-        self.button_home         = Button(50, 50, 75, 75, a["home"])
-        self.button_levels       = [Button(cx, cy, 400, 250, None) for _ in range(NB_LEVELS)]
+        self.button_start        = ButtonUI(cx, cy, 400, 150, None)
+        self.button_book_fr      = ButtonUI(100, self.height - 100, 100, 100, a["tutorial_fr"])
+        self.button_book_en      = ButtonUI(250, self.height - 100, 100, 100, a["tutorial_en"])
+        self.button_right_arrow  = ButtonUI(self.width - 100, cy - 50, 50, 50, a["right_arrow"])
+        self.button_left_arrow   = ButtonUI(100, cy - 50, 50, 50, a["left_arrow"])
+        self.button_right_arrow2 = ButtonUI(self.width - 100, cy + 50, 50, 50, a["right_double_arrow"])
+        self.button_left_arrow2  = ButtonUI(100, cy + 50, 50, 50, a["left_double_arrow"])
+        self.button_home         = ButtonUI(50, 50, 75, 75, a["home"])
+        self.button_levels       = [ButtonUI(cx, cy, 400, 250, None) for _ in range(NB_LEVELS)]

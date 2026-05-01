@@ -4,30 +4,32 @@ from .assets_manager import load_assets
 
 ASSETS = load_assets()
 
-### PLAYER CLASS
+# ==================================================================
+# Player class
+# ==================================================================
+
 class Player:
-    def __init__(self,x,y,speed,width):
-        self.x = x
-        self.y = y
-        self.default_pos = (x,y)
-        self.respawn_pos = (x,y)
+    def __init__(self,pos: tuple,speed: int,width: int):
+        self.x, self.y = pos
+        self.default_pos = pos
+        self.respawn_pos = pos
         self.speed = speed
         self.width = width
         self.win = False
         self.keys = []
-        self.rect = pygame.Rect(x,y,width,width)
+        self.rect = pygame.Rect(self.x,self.y,width,width)
         self.can_teleport = False
 
-    def modify_speed(self,speed):
+    def modify_speed(self,speed: int):
         self.speed = speed
     
-    def is_in_bounds_vertical(self,dy,game):
+    def is_in_bounds_vertical(self,dy: int,game) -> bool:
         return self.y + dy > 0 and self.y + self.width + dy < game.height
 
-    def is_in_bounds_horizontal(self,dx,game):
+    def is_in_bounds_horizontal(self,dx: int,game) -> bool:
         return self.x + dx > 0 and self.x + self.width + dx < game.width
 
-    def can_move(self, dx, dy, walls, game):
+    def can_move(self, dx: int, dy: int, walls, game) -> bool:
         future_rect = pygame.Rect(self.x + dx, self.y + dy, self.width, self.width)
         
         for wall in walls:
@@ -41,7 +43,7 @@ class Player:
 
         return True
 
-    def move(self,dx,dy,walls,game):
+    def move(self,dx: int,dy: int,walls,game):
         assert isinstance(walls,list)
         #horizontal
         if self.win :
@@ -127,16 +129,18 @@ class Player:
         self.keys.append(key.door_id)
         key.collect()
 
+# ==================================================================
+# Obstacles classes
+# ==================================================================
 
-### OBSTACLES CLASSES
 class Wall :
-    def __init__(self, x, y, width, height):
+    def __init__(self, x, y, width: int, height: int):
         self.rect = pygame.Rect(x, y, width, height)
         self.x1, self.y1 = x, y
         self.x2, self.y2 = x + width, y + height
 
 class Door :
-    def __init__(self,x,y,width,height,id=""):
+    def __init__(self,x,y,width: int,height: int,id=""):
         self.rect = pygame.Rect(x, y, width, height)
         self.x1, self.y1 = x, y
         self.x2, self.y2 = x + width, y + height
@@ -149,7 +153,10 @@ class Door :
     def reset(self):
         self.opened = False
 
-### TRIGGERS CLASSES
+# ==================================================================
+# Triggers classes
+# ==================================================================
+
 class Winpad:
     def __init__(self,x,y):
         self.x = x
@@ -162,12 +169,11 @@ class Winpad:
         self.x = x
         self.y = y
 
-    def is_touched(self,player):
-        assert isinstance(player,Player)
+    def is_touched(self,player: Player) -> bool:
         return self.x < player.x + player.width // 2 < self.x + self.width and self.y < player.y + player.width // 2 < self.y + self.width
 
 class Portal:
-    def __init__(self,x,y,id,destination_id):
+    def __init__(self,x,y,id, destination_id):
         self.x, self.y = x,y
         self.width = 50
         self.rect = pygame.Rect(x, y, self.width, self.width)
@@ -179,8 +185,7 @@ class Portal:
     def move(self,x,y):
         self.x, self.y = x, y
 
-    def is_touched(self,player):
-        assert isinstance(player,Player)
+    def is_touched(self,player: Player):
         return self.x < player.x + player.width // 2 < self.x + self.width and self.y < player.y + player.width // 2 < self.y + self.width
 
 class SubMapPortal:
@@ -192,8 +197,7 @@ class SubMapPortal:
         self.spawn_pos = spawn_pos # Player spawn point in new map
         self.img = ASSETS["tp3"] 
 
-    def is_touched(self, player):
-        assert isinstance(player,Player)
+    def is_touched(self, player: Player) -> bool:
         return self.x < player.x + player.width // 2 < self.x + self.width and self.y < player.y + player.width // 2 < self.y + self.width
 
 class Trap :
@@ -203,8 +207,7 @@ class Trap :
         self.rect = pygame.Rect(x,y,TILE_SIZE,TILE_SIZE)
         self.img = ASSETS["trap"]
     
-    def is_touched(self,player):
-        assert isinstance(player,Player)
+    def is_touched(self,player: Player) -> bool:
         return self.rect.colliderect(player.rect)
 
 class Key :
@@ -216,8 +219,7 @@ class Key :
         from .utils import tint_image
         self.img = tint_image(ASSETS["key"],KEY_COLORS.get(self.door_id.lower(), (255, 255, 255)))
 
-    def is_touched(self,player):
-        assert isinstance(player,Player)
+    def is_touched(self,player: Player) -> bool:
         return self.x < player.x + player.width // 2 < self.x + self.width and self.y < player.y + player.width // 2 < self.y + self.width
     
     def collect(self):
@@ -235,8 +237,7 @@ class Light :
         self.effect = TORCH_EFFECT
         self.cooldown = 0.0
 
-    def is_touched(self,player):
-        assert isinstance(player,Player)
+    def is_touched(self,player: Player) -> bool:
         return self.x < player.x + player.width // 2 < self.x + self.width and self.y < player.y + player.width // 2 < self.y + self.width
 
     def collect(self):
@@ -245,8 +246,11 @@ class Light :
     def respawn(self):
         self.collected = False
 
-### UI CLASSES
-class Button:
+# ==================================================================
+# UI classes
+# ==================================================================
+
+class ButtonUI:
     def __init__(self,x,y,width,height,img):
         self.centerx = x
         self.centery = y
@@ -262,5 +266,5 @@ class Button:
         self.x = self.centerx - self.width/2
         self.y = self.centery - self.height/2
 
-    def is_pressed(self,x,y):
+    def is_pressed(self,x,y) -> bool:
         return self.x <= x <= self.x + self.width and self.y <= y <= self.y + self.height

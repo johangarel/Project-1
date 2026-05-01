@@ -1,3 +1,4 @@
+import random
 from .settings import NB_LEVELS
 
 
@@ -9,6 +10,7 @@ class AudioManager:
         self.music_play = save_data["music"]
         self.music_animation = False
         self.time_display = 2.0
+        self.next_walk_sfx = random.choice(["sfx_walk1","sfx_walk2","sfx_walk3","sfx_walk4"])
 
         # Active music
         self._active: object = assets["menu_music"]
@@ -84,3 +86,8 @@ class AudioManager:
             if self.time_display <= 0:
                 self.music_animation = False
                 self.time_display = 2.0
+    
+    def decide_next_walk_sfx(self):
+        l = [sound for sound in ["sfx_walk1","sfx_walk2","sfx_walk3","sfx_walk4"] if sound != self.next_walk_sfx]
+        self.next_walk_sfx = random.choice(l)
+
