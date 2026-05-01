@@ -1,668 +1,595 @@
 import os
 import pygame
-from pygame.locals import*
-from .entities import Player, Door, Key, Trap, Winpad, Portal, Button, Light, SubMapPortal
-from .utils import make_text, load_map, invert_color, generate_custom_maze
-from .settings import*
-from .assets_manager import load_assets
-from .maze import Maze
-from .save_manager import load_game, save_game
+from pygame.locals import *
 
-class Game :
+from .entities import Player, Door, Key, Trap, Winpad, Portal, Button, Light, SubMapPortal
+from .utils import make_text, invert_color
+from .settings import (
+    WIDTH, HEIGHT, NB_LEVELS, TILE_SIZE, FPS,
+    PLAYER_SPEED, PLAYER_WIDTH, VISION_RADIUS,
+    FADE_SPEED, LEVEL_NAMES, LEVEL_COLORS, LEVEL_REWARD,
+    LEVEL_CONFIGS, TORCH_EFFECT, TORCH_TIME,
+    GAME_NAME, GAME_VERSION, START_TEXT, PLAY_TEXT,
+    VICTORY_TEXT, LOADING_TEXT, TUTORIAL_FR_TEXT, TUTORIAL_EN_TEXT,
+    KEY_COLORS, DEFAULT_KEY_COLOR,
+)
+from .assets_manager import load_assets
+from .audio_manager import AudioManager
+from .level_manager import LevelManager
+from .progress_manager import ProgressManager
+from .game_state import GameState
+
+
+class Game:
+    """
+    Main coordinator.
+
+    Responsibilities here:
+      - Main loop (run)
+      - Window construction and UI widgets
+      - Event dispatch to managers
+      - Final rendering (relies on data exposed by managers)
+    """
+
     def __init__(self):
-        # General stuff
-        self.width = WIDTH
-        self.height = HEIGHT
-        self.default_window_size = (WIDTH,HEIGHT)
-        self.nb_levels = NB_LEVELS
-        self.tile_size = TILE_SIZE
-        self.timer = 0
-        self.recall_time = 0
-        # Menus
-        self.active = True
-        self.state = "MAIN MENU"
-        self.maze = 0
-        self.level_menu = 0
-        self.font_color = (0,0,0)
-        self.second_font_color = (255,255,255)
-        # Pygame
+        # --- Pygame ---
         pygame.init()
         self.assets = load_assets()
+
+        # --- Dimensions ---
+        self.width = WIDTH
+        self.height = HEIGHT
+        self.default_window_size = (WIDTH, HEIGHT)
+        self.tile_size = TILE_SIZE
         self.screen = pygame.display.set_mode((self.width, self.height))
-        pygame.display.set_caption(GAME_TITLE)
+        pygame.display.set_caption(GAME_NAME)
         pygame.display.set_icon(self.assets["logo"])
         pygame.display.flip()
-        # Music
-        self.music_animation = False
-        self.music_play = True
-        self.time_display = 2.0
-        self.sound_active = self.assets["menu_music"]
-        self.sound_list = [self.assets["music_level1"], self.assets["music_level2"], self.assets["music_level3"], self.assets["music_level4"]]
-        self.sound_list.extend([None for _ in range(self.nb_levels-len(self.sound_list))])
-        self.sound_list[41] = self.assets["music_level42"]
-        # Frames
-        self.clock = pygame.time.Clock()
-        self.fps = FPS
-        self.seconds = 0
-        # Levels
-        self.wall_list = [[] for _ in range(self.nb_levels)]
-        self.special_objects_list = [[] for _ in range(self.nb_levels)]
-        self.spawn_point_list = [(None,None) for _ in range(self.nb_levels)]
-        self.level_map_list = [None for _ in range(self.nb_levels)]
-        self.level_names = LEVEL_NAMES
-        self.level_colors = LEVEL_COLORS
-        self.level_stars = LEVEL_REWARD
-        self.level_configs = LEVEL_CONFIGS
-        for level_nb in self.level_configs :
-            self.level_configs[level_nb]["loaded"] = False # No level is loaded by default
-        self.vision_radius = VISION_RADIUS
-        # Progression / Saves
-        self.save_data = load_game()
-        self.nb_stars = self.save_data["total_stars"]
-        self.level_time = ["--.--" for _ in range(self.nb_levels)]
-        self.reward_collected = [False for _ in range(self.nb_levels)]
-        for level_id in self.save_data["levels"]:
-            self.level_time[int(level_id)-1] = self.save_data["levels"][level_id]["best_time"]
-            self.reward_collected[int(level_id)-1] = True
-        # More
-        self.center_x, self.center_y = self.screen.get_rect().centerx, self.screen.get_rect().centery
-        self.fade_speed = FADE_SPEED
-        # Text
-        self.name_text, self.name_textpos = make_text(self.assets["font_main"],GAME_NAME,(255, 255, 255),self.center_x,self.center_y - 200)
+        self.center_x = self.screen.get_rect().centerx
+        self.center_y = self.screen.get_rect().centery
 
-        self.level_texts = [make_text(self.assets["font_main"],"Level "+str(nb+1),(255, 255, 255),self.center_x,self.center_y - 200) for nb in range(self.nb_levels)]
-        for nb in range(self.nb_levels) :
-            if nb in self.level_names :
-                self.level_texts[nb-1] = make_text(self.assets["font_main"],self.level_names[nb],(255, 255, 255),self.center_x,self.center_y - 200)
-        self.level_texts[66] = make_text(self.assets["font_main"],self.level_names[67],(0, 0, 0),self.center_x,self.center_y - 200)
+        # --- Managers ---
+        self.progress  = ProgressManager(NB_LEVELS)
+        self.audio     = AudioManager(self.assets, {"music": self.progress.music_on})
+        self.levels    = LevelManager(
+            player=Player(self.center_x - PLAYER_WIDTH / 2, self.height - 50, PLAYER_SPEED, PLAYER_WIDTH),
+            level_configs={k: dict(v) for k, v in LEVEL_CONFIGS.items()},
+        )
+        self.player = self.levels._player   # convenient shortcut
 
-        self.start_text, self.start_textpos = make_text(self.assets["font_main"],START_TEXT,(255, 255, 0),self.center_x,self.center_y)
-        self.victory_text, self.victory_textpos = make_text(self.assets["font_main"],VICTORY_TEXT,(255, 255, 0),self.center_x,self.center_y//2)
-        self.loading_text, self.loading_textpos = make_text(pygame.font.Font(None, 144),LOADING_TEXT,(255,255,255),self.center_x,self.center_y)
-        self.stars_display, self.stars_displaypos = make_text(self.assets["font_medium"],str(self.nb_stars),(255,255,255),100,50)
-        self.tutorial_fr, self.tutorial_en = [], []
-        for i in range(len(TUTORIAL_FR_TEXT)):
-            self.tutorial_fr.append(make_text(self.assets["font_small"],TUTORIAL_FR_TEXT[i],(255,255,255),self.center_x,self.tile_size*(i+2)))
-        for i in range(len(TUTORIAL_EN_TEXT)):
-            self.tutorial_en.append(make_text(self.assets["font_small"],TUTORIAL_EN_TEXT[i],(255,255,255),self.center_x,self.tile_size*(i+2)))
-        # Player
-        self.player = Player(self.center_x - 25/2, self.height - 50, PLAYER_SPEED, PLAYER_WIDTH)
-        # Buttons
-        self.button_start = Button(self.center_x, self.center_y, 400, 150,None)
-        self.button_book_fr = Button(100, self.height -100, 100, 100, self.assets["tutorial_fr"])
-        self.button_book_en = Button(250, self.height -100, 100, 100, self.assets["tutorial_en"])
-        self.button_right_arrow = Button(self.width - 100, self.center_y-50, 50, 50, self.assets["right_arrow"])
-        self.button_left_arrow = Button(100, self.center_y-50, 50, 50, self.assets["left_arrow"])
-        self.button_right_arrow2 = Button(self.width - 100, self.center_y+50, 50, 50, self.assets["right_double_arrow"])
-        self.button_left_arrow2 = Button(100, self.center_y+50, 50, 50, self.assets["left_double_arrow"])
-        self.button_home = Button(50, 50, 75, 75, self.assets["home"])
-        self.button_levels = [Button(self.center_x,self.center_y, 400, 250,None) for _ in range(self.nb_levels)]
-        # Music play
-        self.sound_active.set_volume(0.5)
-        for s in self.sound_list :
-            if s != None :
-                s.set_volume(0.5)
-        self.sound_active.play(loops=-1)
-
-    
-    def reset(self,new_maze=0):
-        # Reset levels
-        if self.state == "MAZE":
-            for so in self.special_objects_list[self.maze-1]:
-                if isinstance(so,Key) or isinstance(so,Door):
-                    so.reset()
-        if new_maze == 0:
-            self.player.reset() #Player reset
-            self.state = "MAIN MENU" #Return to main menu
-            self.fade_to_black(self.width,self.height,self.fade_speed["normal"]) #Transition screen
-        else :
-            self.assets["sfx_death"].play()
-            self.load_sub_map(0)
-        if self.vision_radius != VISION_RADIUS :
-            self.vision_radius = VISION_RADIUS
-        self.timer = pygame.time.get_ticks() #Timer reset
-
-        # Reset menus
-        self.maze = new_maze
+        # --- Game state ---
+        self.state      = GameState.MAIN_MENU
+        self.maze       = 0      # active level (1-based, 0 = menu)
         self.level_menu = 0
+        self.active     = True
 
-        if new_maze == 0:
-            #Window resizing
-            self.width, self.height = self.default_window_size
-            self.screen = pygame.display.set_mode(self.default_window_size)
-            self.center_x, self.center_y = self.screen.get_rect().centerx, self.screen.get_rect().centery
-            #Refresh star counter
-            self.stars_display, self.stars_displaypos = make_text(self.assets["font_medium"],str(self.nb_stars),(255,255,255),100,50)
+        # --- Timing ---
+        self.clock   = pygame.time.Clock()
+        self.fps     = FPS
+        self.dt      = 0.0
+        self.timer   = 0
+        self.seconds = 0.0
 
-            #Music
-            if self.sound_active != self.assets["menu_music"] :
-                if self.sound_active != None :
-                    self.sound_active.stop()
-                    self.sound_active.set_volume(0.5)
-                self.sound_active = self.assets["menu_music"]
-                self.sound_active.play(loops=-1)
-                if not self.music_play :
-                    self.sound_active.set_volume(0)
-        else :
-            self.player.respawn() #Player respawn
+        # --- UI Colors ---
+        self.font_color        = (0, 0, 0)
+        self.second_font_color = (255, 255, 255)
+        self.fade_speed        = FADE_SPEED
+        self.level_colors      = LEVEL_COLORS
+        self.level_names       = LEVEL_NAMES
+        self.level_stars       = LEVEL_REWARD
+        self.nb_levels         = NB_LEVELS
 
-        # Time (reset finished)
-        self.clock.tick()
+        # --- Text & buttons ---
+        self._build_ui()
 
-    def press_left_arrow(self):
-        if self.level_menu == 1 :
-            self.level_menu = self.nb_levels
-        else :
-            self.level_menu -= 1
+    # ==================================================================
+    # Main loop
+    # ==================================================================
 
-    def press_right_arrow(self):
-        if self.level_menu == self.nb_levels :
-            self.level_menu = 1
-        else :
-            self.level_menu += 1
+    def run(self):
+        while self.active:
+            self.handle_events()
+            self.update()
+            self.render()
 
-    def create(self,type,x,y,width,height,color):
-        if type == "rect" :
-            obj = pygame.draw.rect(self.screen, color, (x, y, width, height))
-            r,g,b = color
-            self.screen.fill(pygame.Color(r,g,b),obj)
-    
-    def fade_to_black(self, width, height, speed=10):
-        fade_surface = pygame.Surface((width, height))
-        fade_surface.fill((0, 0, 0))
-        #Modify alpha rapidly
-        for alpha in range(0, 256, speed):
-            fade_surface.set_alpha(alpha)
-            self.screen.blit(fade_surface, (0, 0))
-            pygame.display.update()
-            pygame.time.delay(28)
-
-    def draw_fog(self):
-            fog_surf = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
-            fog_surf.fill((0, 0, 0, 255)) 
-
-            for i in range(self.vision_radius, 0, -5):
-                alpha = int(255 * (i / self.vision_radius)) # Visibility is better in the center
-                pygame.draw.circle(fog_surf, (0, 0, 0, alpha), self.player.rect.center, i)
-            
-            self.screen.blit(fog_surf, (0, 0))
-
-    def load_sub_map(self, map_index):
-        config = self.level_configs[self.maze]
-
-        # LEVEL 3 RANDOMIZER
-        if self.maze == 3:
-            if map_index == 0: #3_1
-                layout = generate_custom_maze(31, 21, ('P', 0, 1), ('S', 30, 19))
-            elif map_index == 1: #3_2
-                layout = generate_custom_maze(31, 21, (' ', 0, 1), ('S', 30, 1))
-                # Add a second sub map portal
-                row_list = list(layout[19])
-                row_list[30] = 'S'
-                layout[19] = "".join(row_list)
-            elif map_index == 2: # 3_3
-                layout = generate_custom_maze(31, 21, (' ', 0, 1), ('V', 30, 19))
-            self.player.move_spawn(TILE_SIZE/4,TILE_SIZE) # Player spawn
-        
-        # Normal loading
-        else:
-            map_file = config["file"][map_index]
-            layout = load_map(map_file)
-        # Create maze
-        current_maze = Maze(layout, config["tps"], self.player, self, map_index=map_index)
-        
-        # Modify global game values
-        self.level_map_list[self.maze-1] = layout
-        self.wall_list[self.maze-1] = current_maze.walls
-        self.special_objects_list[self.maze-1] = current_maze.special_objs
-        if self.vision_radius != VISION_RADIUS :
-            self.vision_radius = VISION_RADIUS
-
-        self.fade_to_black(self.width, self.height, self.fade_speed["normal"]) #Transition screen
-        
-        # Window dimension updating
-        self.width = len(layout[0]) * self.tile_size
-        self.height = len(layout) * self.tile_size
-        os.environ['SDL_VIDEO_WINDOW_POS'] = "center"
-        self.screen = pygame.display.set_mode((self.width, self.height))
-
-        # Time
-        self.clock.tick()
+    # ==================================================================
+    # Events
+    # ==================================================================
 
     def handle_events(self):
         for event in pygame.event.get():
-            # Quit
             if event.type == QUIT:
                 self.active = False
+
             elif event.type == KEYDOWN:
-                # Music activate/desactivate [E]
-                if self.sound_active != None and event.key == K_e:
-                    self.time_display = 2.0
-                    if self.music_play:
-                        self.music_play = False
-                        self.sound_active.set_volume(0)
-                    else:
-                        self.music_play = True
-                        self.sound_active.set_volume(0.5)
-                    self.music_animation = True
-                
-                # Game reset [ESCAPE]
-                elif event.key == K_ESCAPE and not self.state == "MAIN MENU" :
-                    self.reset()
+                # Music [E]
+                if event.key == K_e:
+                    music_on = self.audio.toggle()
+                    self.progress.save_music_pref(music_on)
 
-                # Arrows (left and right) : change the current level selected in the menu
-                elif self.state == "LEVEL MENU" :
+                # Menu return [Escape]
+                elif event.key == K_ESCAPE and self.state != GameState.MAIN_MENU:
+                    self._go_to_menu()
+
+                # Level menu navigation
+                elif self.state == GameState.LEVEL_MENU:
                     if event.key == K_d:
-                        self.press_right_arrow()
+                        self._press_right()
                     elif event.key == K_q:
-                        self.press_left_arrow()
+                        self._press_left()
 
-                # Restart run
-                elif self.state == "MAZE" and event.key == K_r :
-                    self.reset(self.maze)
+                # Reset level [R]
+                elif self.state == GameState.MAZE and event.key == K_r:
+                    self._respawn()
 
-            #Buttons
-            elif event.type == MOUSEBUTTONDOWN :
-                if event.button == 1 :
-                    MOUSE_X, MOUSE_Y = pygame.mouse.get_pos() #Mouse position
+            elif event.type == MOUSEBUTTONDOWN and event.button == 1:
+                mx, my = pygame.mouse.get_pos()
+                self._handle_click(mx, my)
 
-                    if self.state == "LEVEL MENU": #Buttons in levels menu
-                        
-                        # Play button : Transfer the self.player to the right selected level from the menu
-                        for level_id in range(len(self.button_levels)) :
-                            if self.button_levels[level_id].is_pressed(MOUSE_X,MOUSE_Y) and self.level_menu == level_id+1:
+    def _handle_click(self, mx, my):
+        if self.state == GameState.LEVEL_MENU:
+            btn = self.button_levels[self.level_menu - 1]
+            if btn.is_pressed(mx, my):
+                self._start_level(self.level_menu)
 
-                                # Game state changes
-                                self.state = "MAZE"
-                                self.level_menu = 0
-                                self.maze = level_id + 1
+            if self.button_left_arrow.is_pressed(mx, my):
+                self._press_left()
+            if self.button_right_arrow.is_pressed(mx, my):
+                self._press_right()
+            if self.button_left_arrow2.is_pressed(mx, my):
+                self._jump_left()
+            if self.button_right_arrow2.is_pressed(mx, my):
+                self._jump_right()
 
-                                self.assets["sfx_play"].play()
+        elif self.state in (GameState.FRENCH_TUTORIAL, GameState.ENGLISH_TUTORIAL):
+            if self.button_home.is_pressed(mx, my):
+                self.state = GameState.MAIN_MENU
+                self.fade_to_black(self.width, self.height, self.fade_speed["normal"])
 
-                                # Loading + Transition screen
-                                self.fade_to_black(self.width, self.height, self.fade_speed["normal"])
-                                self.screen.blit(self.loading_text,self.loading_textpos)
-                                pygame.display.flip()
+        elif self.state == GameState.VICTORY_MENU:
+            if self.button_home.is_pressed(mx, my):
+                self._go_to_menu()
 
-                                if level_id+1 in self.level_configs : # Level needs to be not empty
-                                    
-                                    if not self.level_configs[level_id+1]["loaded"] and self.maze != 3: # When the level is not loaded + Not level 3 (which has a special loading type)
+        elif self.state == GameState.MAIN_MENU:
+            if self.button_start.is_pressed(mx, my):
+                self.state = GameState.LEVEL_MENU
+                self.level_menu = 1
+                self.fade_to_black(self.width, self.height, self.fade_speed["normal"])
+            if self.button_book_fr.is_pressed(mx, my):
+                self.state = GameState.FRENCH_TUTORIAL
+                self.fade_to_black(self.width, self.height, self.fade_speed["normal"])
+            if self.button_book_en.is_pressed(mx, my):
+                self.state = GameState.ENGLISH_TUTORIAL
+                self.fade_to_black(self.width, self.height, self.fade_speed["normal"])
 
-                                        # Create maze
-                                        config = self.level_configs[level_id+1]
-                                        layout = load_map(config["file"][0]) #The first map is being loaded                            
-                                        current_maze = Maze(layout,config["tps"],self.player,self)
-
-                                        # Modify global game values
-                                        self.level_map_list[level_id] = layout
-                                        self.wall_list[level_id] = current_maze.walls
-                                        self.special_objects_list[level_id] = current_maze.special_objs
-                                        self.spawn_point_list[level_id] = current_maze.spawn_point
-
-                                        self.level_configs[level_id+1]["loaded"] = True # Level has been loaded
-
-                                        self.fade_to_black(self.width, self.height, self.fade_speed["normal"])
-
-                                        # Time
-                                        self.clock.tick()
-                                    
-                                    else : # When a level is loaded
-                                        self.load_sub_map(0)
-
-                                # Window dimension updating
-                                if self.level_map_list[self.maze-1] != None :
-                                    self.width, self.height = len(self.level_map_list[self.maze-1][0])*self.tile_size, len(self.level_map_list[self.maze-1])*self.tile_size
-                                    os.environ['SDL_VIDEO_WINDOW_POS'] = "center"
-                                    self.screen = pygame.display.set_mode((self.width, self.height))
-                                    self.center_x, self.center_y = self.screen.get_rect().centerx, self.screen.get_rect().centery
-                                    
-                                    # Move player
-                                    if self.spawn_point_list[self.maze-1][0] != None :
-                                        x,y = self.spawn_point_list[self.maze-1]
-                                        self.player.move_spawn(x,y)
-
-                                #Timer starting
-                                self.timer = pygame.time.get_ticks()
-                                
-                                # Music
-                                self.sound_active.stop()
-                                self.sound_active.set_volume(0.5)
-                                self.sound_active = self.sound_list[level_id]
-                                if self.sound_active != None :
-                                    self.sound_active.play(loops=-1)
-                                    if not self.music_play :
-                                        self.sound_active.set_volume(0)
-                        
-                        # Arrows (left and right) : change the current level selected in the menu
-                        if self.state == "LEVEL MENU" :
-                            if self.button_right_arrow.is_pressed(MOUSE_X,MOUSE_Y):
-                                self.press_right_arrow()
-                            if self.button_left_arrow.is_pressed(MOUSE_X,MOUSE_Y):
-                                self.press_left_arrow()
-                            if self.button_right_arrow2.is_pressed(MOUSE_X,MOUSE_Y):
-                                for _ in range(10):
-                                    self.press_right_arrow()
-                            if self.button_left_arrow2.is_pressed(MOUSE_X,MOUSE_Y):
-                                for _ in range(10):
-                                    self.press_left_arrow()
-                            
-
-                    elif self.state == "MAZE": # Buttons when a level is being played
-                        pass # No buttons for now
-                    
-                    # Tutorial and victory menus : Home buttons
-                    elif self.state == "FRENCH TUTORIAL" :
-                        if self.button_home.is_pressed(MOUSE_X,MOUSE_Y):
-                            self.state = "MAIN MENU"
-                            self.fade_to_black(self.width,self.height,self.fade_speed["normal"])
-                    
-                    elif self.state == "ENGLISH TUTORIAL":
-                        if self.button_home.is_pressed(MOUSE_X,MOUSE_Y):
-                            self.state = "MAIN MENU"
-                            self.fade_to_black(self.width,self.height,self.fade_speed["normal"])
-
-                    elif self.state == "VICTORY MENU" :
-                        if self.button_home.is_pressed(MOUSE_X,MOUSE_Y):
-                            self.state = "MAIN MENU"
-                            self.fade_to_black(self.width,self.height,self.fade_speed["normal"])
-                            self.reset()
-
-                    elif self.state == "MAIN MENU":
-                        # Start button : goes to the level menu
-                        if self.button_start.is_pressed(MOUSE_X, MOUSE_Y):
-                            self.state = "LEVEL MENU"
-                            self.level_menu = 1
-                            self.fade_to_black(self.width,self.height,self.fade_speed["normal"])
-                        
-                        # "Book" buttons goes to their respectives menus
-                        if self.button_book_fr.is_pressed(MOUSE_X,MOUSE_Y):
-                            self.state = "FRENCH TUTORIAL"
-                            self.fade_to_black(self.width, self.height, self.fade_speed["normal"]) 
-                        
-                        if self.button_book_en.is_pressed(MOUSE_X,MOUSE_Y):
-                            self.state = "ENGLISH TUTORIAL"
-                            self.fade_to_black(self.width, self.height, self.fade_speed["normal"]) 
+    # ==================================================================
+    # Update
+    # ==================================================================
 
     def update(self):
         raw_dt = self.clock.tick(self.fps) / 1000.0
-        self.dt = min(raw_dt, 0.05) #Time tracking
+        self.dt = min(raw_dt, 0.05)
+
+        self.audio.update(self.dt)
+
+        if self.state != GameState.MAZE:
+            return
+
         self.seconds = round((pygame.time.get_ticks() - self.timer) / 1000, 2)
-        if self.state == "MAZE" :
-            keys = pygame.key.get_pressed()
+        keys = pygame.key.get_pressed()
 
-            #Basic movement
-            dx, dy = 0, 0
-            distance = self.player.speed * self.dt
-            if keys[pygame.K_q] :
-                dx -= distance
-            if keys[pygame.K_d] :
-                dx += distance
-            if keys[pygame.K_z] :
-                dy -= distance
-            if keys[pygame.K_s] :
-                dy += distance
-            
-            # Obstacles are walls and closed doors
-            obstacles = list(self.wall_list[self.maze-1])
-            for so in self.special_objects_list[self.maze-1]:
-                if isinstance(so,Door) and not so.opened:
-                    obstacles.append(so)
+        dx, dy = 0.0, 0.0
+        dist = self.player.speed * self.dt
+        if keys[K_q]: dx -= dist
+        if keys[K_d]: dx += dist
+        if keys[K_z]: dy -= dist
+        if keys[K_s]: dy += dist
 
-            #Moves the player only when it doesn't collide with a wall, closed door or the window border
-            self.player.move(dx, dy, obstacles, self) 
+        # Obstacles = walls + closed doors
+        walls = list(self.levels.walls(self.maze))
+        for obj in self.levels.special_objs(self.maze):
+            if isinstance(obj, Door) and not obj.opened:
+                walls.append(obj)
 
-            #Interacting with a special object
-            portal_contact = False
-            for so in self.special_objects_list[self.maze-1]:
-                if isinstance(so,Portal) and so.is_touched(self.player): # Use portal
-                    portal_contact = True
-                    if self.player.can_teleport : # To prevent infinite teleportations
-                        if so.dest_id != None and so.id != so.dest_id:
-                            self.assets["sfx_teleport"].play()
-                        self.player.use_portal(so,self.special_objects_list[self.maze-1])
-                        self.player.can_teleport = False
-                        break # To prevent errors
+        self.player.move(dx, dy, walls, self)
+        self._process_objects()
 
-                if isinstance(so,Winpad) and so.is_touched(self.player) and not self.player.win: # Win
-                    self.assets["sfx_win"].play()
-                    self.player.victory()
-                    self.fade_to_black(self.width,self.height,self.fade_speed["slow"]) # Transition screen
+    def _process_objects(self):
+        portal_contact = False
 
-                    # Stars
-                    if not self.reward_collected[self.maze-1]:
-                        self.reward_collected[self.maze-1] = True
-                        self.nb_stars += self.level_stars[self.maze]
+        for obj in list(self.levels.special_objs(self.maze)):
+            # Portal
+            if isinstance(obj, Portal) and obj.is_touched(self.player):
+                portal_contact = True
+                if self.player.can_teleport:
+                    if obj.dest_id is not None and obj.id != obj.dest_id:
+                        self.audio.play_sfx("sfx_teleport")
+                    self.player.use_portal(obj, self.levels.special_objs(self.maze))
+                    self.player.can_teleport = False
+                    break
 
-                    # Timer
-                    if self.level_time[self.maze-1] == "--.--" or self.seconds < self.level_time[self.maze-1]: #Record
-                        self.level_time[self.maze-1] = self.seconds
+            # Victory
+            elif isinstance(obj, Winpad) and obj.is_touched(self.player) and not self.player.win:
+                self._handle_victory()
+                break
 
-                    # Save
-                    self.save_progression(self.maze,self.nb_stars,self.level_time[self.maze-1])
+            # Key
+            elif isinstance(obj, Key) and not obj.collected and obj.is_touched(self.player):
+                self.audio.play_sfx("sfx_key")
+                self.player.pick_up_key(obj)
 
-                    # Music
-                    if self.sound_active != None :
-                        self.sound_active.stop()
-                    self.sound_active = self.assets["music_victory"]
-                    self.sound_active.set_volume(0.5)
-                    self.sound_active.play(loops=-1)
-                    if not self.music_play :
-                        self.sound_active.set_volume(0)
+            # Door
+            elif isinstance(obj, Door) and not obj.opened:
+                if obj.rect.inflate(10, 10).colliderect(self.player.rect):
+                    if obj.id in self.player.keys:
+                        self.audio.play_sfx("sfx_unlock")
+                        obj.open()
 
-                    # Window resizing
-                    self.width, self.height = self.default_window_size
-                    self.screen = pygame.display.set_mode(self.default_window_size)
-                    self.center_x, self.center_y = self.screen.get_rect().centerx, self.screen.get_rect().centery
+            # Trap
+            elif isinstance(obj, Trap) and obj.is_touched(self.player):
+                self._respawn()
+                break
 
-                    # Game state update
-                    self.state = "VICTORY MENU"
-                    self.maze = 0
+            # Light
+            elif isinstance(obj, Light):
+                if obj.is_touched(self.player) and obj.cooldown == 0.0:
+                    obj.collect()
+                    obj.cooldown = TORCH_TIME
+                    self.levels.vision_radius += TORCH_EFFECT
+                if 0.0 < obj.cooldown <= TORCH_TIME:
+                    obj.cooldown -= self.dt
+                    if obj.cooldown <= 0.0:
+                        obj.cooldown = 0.0
+                        self.levels.vision_radius -= TORCH_EFFECT
+                        obj.respawn()
 
-                    # Text
-                    self.final_timer_text, self.final_timer_textpos = make_text(self.assets["font_main"],"Time : "+str(self.seconds),(255,255,255),self.center_x,self.center_y)
+            # Sub-map
+            elif isinstance(obj, SubMapPortal) and obj.is_touched(self.player):
+                layout = self.levels.load_sub_map(self.maze, obj.target_map_index, self)
+                self.player.teleport(
+                    obj.spawn_pos[0] + self.player.width / 2,
+                    obj.spawn_pos[1] + self.player.width / 2,
+                )
+                self._resize_window(layout)
+                self.audio.play_sfx("sfx_teleport")
+                break
 
+        if not portal_contact:
+            self.player.can_teleport = True
 
-                if isinstance(so,Key) and not so.collected and so.is_touched(self.player): #Collect key
-                    self.assets["sfx_key"].play()
-                    self.player.pick_up_key(so)
-
-                if isinstance(so,Door) and not so.opened and so.rect.inflate(10,10).colliderect(self.player.rect): # Open door if player has the keys 
-                    if so.id in self.player.keys :
-                        self.assets["sfx_unlock"].play() 
-                        so.open()
-
-                if isinstance(so,Trap) and so.is_touched(self.player): # Kill player and reset maze
-                    self.reset(self.maze)
-                    break # Map possibly changed
-
-                if isinstance(so,Light) : # Increase player vision
-                    if so.is_touched(self.player) and so.cooldown == 0.0: # Collect temporary torch
-                        so.collect()
-                        so.cooldown = TORCH_TIME
-                        self.vision_radius += TORCH_EFFECT
-                    # Update cooldown
-                    if 0.0 < so.cooldown <= TORCH_TIME :
-                        so.cooldown -= self.dt
-                        if so.cooldown <= 0.0 :
-                            so.cooldown = 0.0
-                            self.vision_radius -= TORCH_EFFECT
-                            so.respawn()
-
-                if isinstance(so, SubMapPortal) and so.is_touched(self.player): # Load another sub map in the level
-                    self.load_sub_map(so.target_map_index)
-                    # Teleport player
-                    self.assets["sfx_teleport"].play()
-                    self.player.teleport(so.spawn_pos[0] + (self.player.width/2), so.spawn_pos[1] + (self.player.width/2))
-                    break # Level updated, special_objects_list changed
-        
-            # Player exited a portal, he can now reenter one
-            if not portal_contact :
-                self.player.can_teleport = True
-        
-        # Update music animation
-        if self.music_animation and self.time_display <= 0 :
-                self.music_animation = False
-        if not self.music_animation and self.time_display != 2.0 :
-            self.time_display = 2.0
+    # ==================================================================
+    # Rendering
+    # ==================================================================
 
     def render(self):
-        # Font color
+        # Background
         if self.maze == 67 or self.level_menu == 67:
-            self.screen.fill(pygame.Color(255,255,255))
-        else :
-            self.screen.fill(pygame.Color(0,0,0))
-        
-        #Levels
-        if self.state == "MAZE" :
-            objs = self.special_objects_list[self.maze-1]
-            walls = self.wall_list[self.maze-1]
+            self.screen.fill((255, 255, 255))
+        else:
+            self.screen.fill((0, 0, 0))
 
-            #Objects underneath the player
-            for so in objs:
-                if isinstance(so,Portal):
-                    if so.dest_id == None : # Tp goes nowhere -> image gets darker
-                        self.screen.blit(so.img2,(so.x, so.y))
-                    else : 
-                        self.screen.blit(so.img,(so.x, so.y))
-                elif isinstance(so,Winpad):
-                    self.screen.blit(so.img,(so.x,so.y))
-                elif isinstance(so,Key) and not so.collected: #Display key if not collected
-                    self.screen.blit(so.img, (so.x, so.y))
-                elif isinstance(so,Door) and not so.opened: #Display door if not opened
-                    color = KEY_COLORS.get(so.id.lower(), DEFAULT_KEY_COLOR)
-                    self.create("rect",so.x1, so.y1, so.x2-so.x1, so.y2-so.y1,color)
-                    pygame.draw.rect(self.screen, (0,0,0), so.rect, 2)
-                elif isinstance(so,Trap):
-                    self.screen.blit(so.img,(so.x,so.y))
-                elif isinstance(so,Light) :
-                    if not so.collected:
-                        self.screen.blit(so.img,(so.x,so.y))
-                elif isinstance(so,SubMapPortal):
-                    self.screen.blit(so.img,(so.x,so.y))
+        if self.state == GameState.MAZE:
+            self._render_maze()
+        elif self.state == GameState.LEVEL_MENU:
+            self._render_level_menu()
+        elif self.state in (GameState.FRENCH_TUTORIAL, GameState.ENGLISH_TUTORIAL):
+            self._render_tutorial()
+        elif self.state == GameState.VICTORY_MENU:
+            self._render_victory()
+        elif self.state == GameState.MAIN_MENU:
+            self._render_main_menu()
 
-            #The player
-            self.create("rect",self.player.x, self.player.y, self.player.width, self.player.width,(255,0,0))
+        # Music icon animation
+        if self.audio.music_animation:
+            img_key = "music_on" if self.audio.music_play else "music_off"
+            self.screen.blit(self.assets[img_key], (self.width - 75, 25))
 
-            #Objects above the player
-            # Walls
-            if self.maze in self.level_colors :
-                level_color = self.level_colors[self.maze]
-            else :
-                level_color = (255,255,255)
-            for wall in walls :
-                self.create("rect",wall.x1, wall.y1, wall.x2-wall.x1, wall.y2-wall.y1,level_color)
-            # Activate fog of war (if needed)
-            if self.maze in self.level_configs and self.level_configs[self.maze]["fow"]:
-                self.draw_fog()
-            # Timer
-            timer_text, timer_pos = make_text(self.assets["font_small"],"Time : "+str(self.seconds),(255,255,255),self.width-100,30)
-            self.screen.blit(timer_text,timer_pos)
-
-        #Level selecting menu
-        elif self.state == "LEVEL MENU" :
-
-            #Level font color
-            font_color = self.font_color
-            if self.level_menu == 67 :
-                font_color = invert_color(font_color)
-            inv_font_color = invert_color(font_color)
-            #Current level color
-            if self.level_menu in self.level_colors :
-                level_color = self.level_colors[self.level_menu]
-            else :
-                level_color = self.second_font_color
-            
-            level = self.button_levels[self.level_menu-1]
-
-            # Center play button
-            self.create("rect",level.x, level.y, level.width, level.height,level_color)
-            self.create("rect",level.x + 20, level.y + 20, level.width - 40, level.height - 40,font_color)
-
-            # Level text display
-            t, tpos = self.level_texts[self.level_menu-1]
-            self.screen.blit(t, tpos)
-            
-            # PLAY text display
-            play_text, play_textpos = make_text(self.assets["font_main"],PLAY_TEXT,level_color,self.center_x,self.center_y)
-            self.screen.blit(play_text,play_textpos)
-
-            # Stars
-            if self.level_menu in self.level_stars :
-                stars = self.level_stars[self.level_menu]
-            else :
-                stars = 0
-            star_txt, star_pos = make_text(self.assets["font_medium"],": "+str(stars),inv_font_color,self.center_x + 20,self.center_y + 200)
-            star_txt_width, _ = star_txt.get_size()
-            self.screen.blit(self.assets["star"],(self.center_x-75,self.center_y+175))
-            self.screen.blit(star_txt,(star_pos.left + star_txt_width/2 -25, star_pos.top))
-
-            if self.reward_collected[self.level_menu-1]: #Checkmark
-                self.screen.blit(self.assets["completed"],(self.center_x-75,self.center_y+175))
-
-            # Timer
-            rec_txt, rec_pos = make_text(self.assets["font_medium"],"Record : "+str(self.level_time[self.level_menu-1]),inv_font_color,self.center_x,self.center_y + 275)
-            self.screen.blit(rec_txt,rec_pos)
-
-            # Additional level text if level has a name
-            if self.level_menu in self.level_names:
-                levelindex_text, levelindex_textpos = make_text(self.assets["font_small"],"Level "+str(self.level_menu),inv_font_color,self.center_x,100)
-                self.screen.blit(levelindex_text,levelindex_textpos)
-            
-            # Arrows
-            for btn in [self.button_left_arrow, self.button_right_arrow, self.button_left_arrow2, self.button_right_arrow2]:
-                self.screen.blit(btn.img, (btn.x, btn.y))
-
-        #Tutorial menus
-        elif self.state in ["FRENCH TUTORIAL", "ENGLISH TUTORIAL"]:
-            texts = self.tutorial_fr if "FRENCH" in self.state else self.tutorial_en
-            for t, tp in texts: self.screen.blit(t, tp)
-            self.screen.blit(self.button_home.img, (self.button_home.x, self.button_home.y))
-
-        #Victory menu
-        elif self.state == "VICTORY MENU":
-            self.create("rect",50,50,self.width-100,self.height-100,(255,255,0))
-            self.create("rect",75,75,self.width-150,self.height-150,(0,0,0))
-            self.screen.blit(self.victory_text,self.victory_textpos)
-            self.screen.blit(self.button_home.img, (self.button_home.x,self.button_home.y))
-            self.screen.blit(self.final_timer_text,self.final_timer_textpos)
-
-        #Start menu
-        elif self.state == "MAIN MENU":
-            #The game name
-            self.screen.blit(self.name_text, self.name_textpos)
-            #Start button visual 
-            self.create("rect",self.button_start.x, self.button_start.y, self.button_start.width, self.button_start.height,(255,255,0))
-            self.create("rect",self.button_start.x + 10, self.button_start.y + 10, self.button_start.width - 20, self.button_start.height - 20,(0,0,0))
-            self.screen.blit(self.start_text,self.start_textpos)
-
-            #Tutorial menus
-            self.screen.blit(self.button_book_fr.img,(self.button_book_fr.x,self.button_book_fr.y))
-            self.screen.blit(self.button_book_en.img,(self.button_book_en.x,self.button_book_en.y))
-
-            # Star counter
-            stars_text_width, _ = self.stars_display.get_size()
-            self.screen.blit(self.assets["star"],(25,25))
-            self.screen.blit(self.stars_display,(self.stars_displaypos.left + stars_text_width/2, self.stars_displaypos.top))
-
-        #Music display animation
-        if self.music_animation:
-            if self.music_play :
-                self.screen.blit(self.assets["music_on"],(self.width - 75, 25))
-            else :
-                self.screen.blit(self.assets["music_off"],(self.width - 75, 25))
-            self.time_display -= self.dt
-        
         pygame.display.flip()
-    
-    def save_progression(self, level_id, stars, time_spent):
-        if str(level_id) not in self.save_data["levels"]:
-            self.save_data["levels"][str(level_id)] = {"best_time": float('inf')}
-        
-        self.save_data["total_stars"] = stars
-        
-        if time_spent < self.save_data["levels"][str(level_id)]["best_time"]:
-            self.save_data["levels"][str(level_id)]["best_time"] = time_spent
-        
-        save_game(self.save_data)
 
+    def _render_maze(self):
+        objs  = self.levels.special_objs(self.maze)
+        walls = self.levels.walls(self.maze)
+
+        for obj in objs:
+            if isinstance(obj, Portal):
+                img = obj.img if obj.dest_id is not None else obj.img2
+                self.screen.blit(img, (obj.x, obj.y))
+            elif isinstance(obj, Winpad):
+                self.screen.blit(obj.img, (obj.x, obj.y))
+            elif isinstance(obj, Key) and not obj.collected:
+                self.screen.blit(obj.img, (obj.x, obj.y))
+            elif isinstance(obj, Door) and not obj.opened:
+                color = KEY_COLORS.get(obj.id.lower(), DEFAULT_KEY_COLOR)
+                pygame.draw.rect(self.screen, color, (obj.x1, obj.y1, obj.x2 - obj.x1, obj.y2 - obj.y1))
+                pygame.draw.rect(self.screen, (0, 0, 0), obj.rect, 2)
+            elif isinstance(obj, Trap):
+                self.screen.blit(obj.img, (obj.x, obj.y))
+            elif isinstance(obj, Light) and not obj.collected:
+                self.screen.blit(obj.img, (obj.x, obj.y))
+            elif isinstance(obj, SubMapPortal):
+                self.screen.blit(obj.img, (obj.x, obj.y))
+
+        pygame.draw.rect(self.screen, (255, 0, 0),
+                         (self.player.x, self.player.y, self.player.width, self.player.width))
+
+        level_color = self.level_colors.get(self.maze, (255, 255, 255))
+        for wall in walls:
+            pygame.draw.rect(self.screen, level_color,
+                             (wall.x1, wall.y1, wall.x2 - wall.x1, wall.y2 - wall.y1))
+
+        if self.levels.has_fow(self.maze):
+            self._draw_fog()
+
+        timer_txt, timer_pos = make_text(
+            self.assets["font_small"], f"Time : {self.seconds}", (255, 255, 255),
+            self.width - 100, 30,
+        )
+        self.screen.blit(timer_txt, timer_pos)
+
+    def _render_level_menu(self):
+        font_color = self.font_color
+        if self.level_menu == 67:
+            font_color = invert_color(font_color)
+        inv_color = invert_color(font_color)
+        level_color = self.level_colors.get(self.level_menu, self.second_font_color)
+
+        level_btn = self.button_levels[self.level_menu - 1]
+        pygame.draw.rect(self.screen, level_color,
+                         (level_btn.x, level_btn.y, level_btn.width, level_btn.height))
+        pygame.draw.rect(self.screen, font_color,
+                         (level_btn.x + 20, level_btn.y + 20,
+                          level_btn.width - 40, level_btn.height - 40))
+
+        t, tpos = self.level_texts[self.level_menu - 1]
+        self.screen.blit(t, tpos)
+
+        play_t, play_pos = make_text(self.assets["font_main"], PLAY_TEXT, level_color,
+                                     self.center_x, self.center_y)
+        self.screen.blit(play_t, play_pos)
+
+        stars = self.level_stars.get(self.level_menu, 0)
+        star_txt, star_pos = make_text(self.assets["font_medium"], f": {stars}", inv_color,
+                                       self.center_x + 20, self.center_y + 200)
+        w, _ = star_txt.get_size()
+        self.screen.blit(self.assets["star"], (self.center_x - 75, self.center_y + 175))
+        self.screen.blit(star_txt, (star_pos.left + w / 2 - 25, star_pos.top))
+
+        if self.progress.is_completed(self.level_menu):
+            self.screen.blit(self.assets["completed"], (self.center_x - 75, self.center_y + 175))
+
+        rec_txt, rec_pos = make_text(
+            self.assets["font_medium"],
+            f"Record : {self.progress.best_time_display(self.level_menu)}",
+            inv_color, self.center_x, self.center_y + 275,
+        )
+        self.screen.blit(rec_txt, rec_pos)
+
+        if self.level_menu in self.level_names:
+            li_txt, li_pos = make_text(self.assets["font_small"],
+                                       f"Level {self.level_menu}", inv_color,
+                                       self.center_x, 100)
+            self.screen.blit(li_txt, li_pos)
+
+        for btn in (self.button_left_arrow, self.button_right_arrow,
+                    self.button_left_arrow2, self.button_right_arrow2):
+            self.screen.blit(btn.img, (btn.x, btn.y))
+
+    def _render_tutorial(self):
+        texts = (self.tutorial_fr if self.state == GameState.FRENCH_TUTORIAL
+                 else self.tutorial_en)
+        for t, tp in texts:
+            self.screen.blit(t, tp)
+        self.screen.blit(self.button_home.img, (self.button_home.x, self.button_home.y))
+
+    def _render_victory(self):
+        pygame.draw.rect(self.screen, (255, 255, 0), (50, 50, self.width - 100, self.height - 100))
+        pygame.draw.rect(self.screen, (0, 0, 0),     (75, 75, self.width - 150, self.height - 150))
+        self.screen.blit(self.victory_text, self.victory_textpos)
+        self.screen.blit(self.button_home.img, (self.button_home.x, self.button_home.y))
+        self.screen.blit(self.final_timer_text, self.final_timer_textpos)
+        if self.display_record_txt:
+            self.screen.blit(self.record_txt, self.record_pos)
+
+    def _render_main_menu(self):
+        self.screen.blit(self.name_text, self.name_textpos)
+        pygame.draw.rect(self.screen, (255, 255, 0),
+                         (self.button_start.x, self.button_start.y,
+                          self.button_start.width, self.button_start.height))
+        pygame.draw.rect(self.screen, (0, 0, 0),
+                         (self.button_start.x + 10, self.button_start.y + 10,
+                          self.button_start.width - 20, self.button_start.height - 20))
+        self.screen.blit(self.start_text, self.start_textpos)
+        self.screen.blit(self.button_book_fr.img, (self.button_book_fr.x, self.button_book_fr.y))
+        self.screen.blit(self.button_book_en.img, (self.button_book_en.x, self.button_book_en.y))
+
+        w, _ = self.stars_display.get_size()
+        self.screen.blit(self.assets["star"], (25, 25))
+        self.screen.blit(self.stars_display, (self.stars_displaypos.left + w / 2, self.stars_displaypos.top))
+        self.screen.blit(self.v_txt, self.v_pos)
+
+    # ==================================================================
+    # Transitions & actions
+    # ==================================================================
+
+    def fade_to_black(self, width, height, speed=10):
+        surf = pygame.Surface((width, height))
+        surf.fill((0, 0, 0))
+        for alpha in range(0, 256, speed):
+            surf.set_alpha(alpha)
+            self.screen.blit(surf, (0, 0))
+            pygame.display.update()
+            pygame.time.delay(28)
+
+    def _draw_fog(self):
+        fog = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
+        fog.fill((0, 0, 0, 255))
+        r = self.levels.vision_radius
+        for i in range(r, 0, -5):
+            alpha = int(255 * (i / r))
+            pygame.draw.circle(fog, (0, 0, 0, alpha), self.player.rect.center, i)
+        self.screen.blit(fog, (0, 0))
+
+    def _go_to_menu(self):
+        if self.state == GameState.MAZE:
+            self.levels.reset_objects(self.maze)
+        self.player.reset()
+        self.state = GameState.MAIN_MENU
+        self.maze = 0
+        self.level_menu = 0
+        self.display_record_txt = False
+        self.levels.reset_vision()
+        self.timer = pygame.time.get_ticks()
         
+        self.fade_to_black(self.width, self.height, self.fade_speed["normal"])
+
+        self.width, self.height = self.default_window_size
+        self.screen = pygame.display.set_mode(self.default_window_size)
+        self.center_x = self.screen.get_rect().centerx
+        self.center_y = self.screen.get_rect().centery
+
+        self.stars_display, self.stars_displaypos = make_text(
+            self.assets["font_medium"], str(self.progress.nb_stars),
+            (255, 255, 255), 100, 50,
+        )
+
+        self.audio.switch_to_menu()
+        self.clock.tick()
+
+    def _respawn(self):
+        self.levels.reset_objects(self.maze)
+        self.levels.reset_vision()
+        self.audio.play_sfx("sfx_death")
+        layout = self.levels.load_sub_map(self.maze, 0, self)
+        self.player.respawn()
+        self._resize_window(layout)
+        self.timer = pygame.time.get_ticks()
+        self.clock.tick()
+
+    def _handle_victory(self):
+        self.audio.play_sfx("sfx_win")
+        self.player.victory()
+        self.fade_to_black(self.width, self.height, self.fade_speed["slow"])
+
+        stars = self.level_stars.get(self.maze, 0)
+        new_record = self.progress.record_victory(self.maze, stars, self.seconds)
+        self.display_record_txt = new_record
+
+        self.audio.switch_to_victory()
+
+        self.width, self.height = self.default_window_size
+        self.screen = pygame.display.set_mode(self.default_window_size)
+        self.center_x = self.screen.get_rect().centerx
+        self.center_y = self.screen.get_rect().centery
+
+        self.final_timer_text, self.final_timer_textpos = make_text(
+            self.assets["font_main"], f"Time : {self.seconds}",
+            (255, 255, 255), self.center_x, self.center_y,
+        )
+        self.state = GameState.VICTORY_MENU
+        self.maze = 0
+
+    def _start_level(self, level_id: int):
+        self.state      = GameState.MAZE
+        self.level_menu = 0
+        self.maze       = level_id
+        self.display_record_txt = False
+
+        self.audio.play_sfx("sfx_play")
+        self.fade_to_black(self.width, self.height, self.fade_speed["normal"])
+        self.screen.blit(self.loading_text, self.loading_textpos)
+        pygame.display.flip()
+
+        cfg = self.levels.level_configs.get(level_id)
+        if cfg:
+            if not cfg["loaded"] and level_id != 3:
+                layout = self.levels.load_level(level_id, self)
+            else:
+                layout = self.levels.load_sub_map(level_id, 0, self)
+            self._resize_window(layout)
+
+        self.audio.switch_to_level(level_id)
+        self.timer = pygame.time.get_ticks()
+        self.clock.tick()
+
+    def _resize_window(self, layout):
+        self.fade_to_black(self.width, self.height, self.fade_speed["normal"])
+        self.width  = len(layout[0]) * self.tile_size
+        self.height = len(layout)    * self.tile_size
+        os.environ["SDL_VIDEO_WINDOW_POS"] = "center"
+        self.screen = pygame.display.set_mode((self.width, self.height))
+        self.clock.tick()
+
+    # ==================================================================
+    # Level menu navigation
+    # ==================================================================
+
+    def _press_left(self):
+        self.level_menu = self.nb_levels if self.level_menu == 1 else self.level_menu - 1
+
+    def _press_right(self):
+        self.level_menu = 1 if self.level_menu == self.nb_levels else self.level_menu + 1
+
+    def _jump_left(self):
+        self.level_menu = max(1, self.level_menu - 10)
+
+    def _jump_right(self):
+        self.level_menu = min(self.nb_levels, self.level_menu + 10)
+
+    # ==================================================================
+    # UI Construction (called once in __init__)
+    # ==================================================================
+
+    def _build_ui(self):
+        a = self.assets
+        cx, cy = self.center_x, self.center_y
+
+        self.name_text, self.name_textpos = make_text(
+            a["font_main"], GAME_NAME, (255, 255, 255), cx, cy - 200)
+        self.start_text, self.start_textpos = make_text(
+            a["font_main"], START_TEXT, (255, 255, 0), cx, cy)
+        self.victory_text, self.victory_textpos = make_text(
+            a["font_main"], VICTORY_TEXT, (255, 255, 0), cx, cy // 2)
+        self.loading_text, self.loading_textpos = make_text(
+            pygame.font.Font(None, 144), LOADING_TEXT, (255, 255, 255), cx, cy)
+        self.stars_display, self.stars_displaypos = make_text(
+            a["font_medium"], str(self.progress.nb_stars), (255, 255, 255), 100, 50)
+        self.v_txt, self.v_pos = make_text(
+            a["font_small"], GAME_VERSION, (255, 255, 255),
+            self.width - 25 - 6 * len(GAME_VERSION), 25)
+        self.record_txt, self.record_pos = make_text(
+            a["font_medium"], "New record !", (255, 255, 255), cx, cy + 75)
+        self.display_record_txt = False
+
+        # Level texts
+        self.level_texts = [
+            make_text(a["font_main"], f"Level {n + 1}", (255, 255, 255), cx, cy - 200)
+            for n in range(NB_LEVELS)
+        ]
+        for lvl_id, name in LEVEL_NAMES.items():
+            color = (0, 0, 0) if lvl_id == 67 else (255, 255, 255)
+            self.level_texts[lvl_id - 1] = make_text(a["font_main"], name, color, cx, cy - 200)
+
+        # Tutorials
+        self.tutorial_fr = [
+            make_text(a["font_small"], txt, (255, 255, 255), cx, TILE_SIZE * (i + 2))
+            for i, txt in enumerate(TUTORIAL_FR_TEXT)
+        ]
+        self.tutorial_en = [
+            make_text(a["font_small"], txt, (255, 255, 255), cx, TILE_SIZE * (i + 2))
+            for i, txt in enumerate(TUTORIAL_EN_TEXT)
+        ]
+
+        # Placeholder for level end text
+        self.final_timer_text, self.final_timer_textpos = make_text(
+            a["font_main"], "", (255, 255, 255), cx, cy)
+
+        # Buttons
+        self.button_start        = Button(cx, cy, 400, 150, None)
+        self.button_book_fr      = Button(100, self.height - 100, 100, 100, a["tutorial_fr"])
+        self.button_book_en      = Button(250, self.height - 100, 100, 100, a["tutorial_en"])
+        self.button_right_arrow  = Button(self.width - 100, cy - 50, 50, 50, a["right_arrow"])
+        self.button_left_arrow   = Button(100, cy - 50, 50, 50, a["left_arrow"])
+        self.button_right_arrow2 = Button(self.width - 100, cy + 50, 50, 50, a["right_double_arrow"])
+        self.button_left_arrow2  = Button(100, cy + 50, 50, 50, a["left_double_arrow"])
+        self.button_home         = Button(50, 50, 75, 75, a["home"])
+        self.button_levels       = [Button(cx, cy, 400, 250, None) for _ in range(NB_LEVELS)]
