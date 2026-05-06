@@ -46,11 +46,11 @@ class Maze :
                 elif char == "P":  # Player Start
                     self.spawn_point = (x,y)
                 elif char == "V":  # Victory
-                    self.special_objs.append(Winpad(x, y))
+                    self.special_objs.append(Winpad(x, y, game.assets["winpad"]))
                 elif char == "T": # Trap
-                    self.special_objs.append(Trap(x,y))
+                    self.special_objs.append(Trap(x,y, game.assets["trap"]))
                 elif char == "L": # Light object
-                    self.special_objs.append(Light(x,y))
+                    self.special_objs.append(Light(x,y, game.assets["torch"]))
                 elif char == "S": # Sub map portal
                     config = None
                     level_id = game.maze
@@ -59,13 +59,13 @@ class Maze :
                         config = SUBMAP_ROUTES[level_id][map_index][self.sub_portal_count]
                     # Create the portal if the path exists
                     if config:
-                        portal = SubMapPortal(x, y, config["target_map"], config["spawn_pos"])
+                        portal = SubMapPortal(x, y, config["target_map"], config["spawn_pos"], game.assets["tp3"])
                         self.special_objs.append(portal)
                         self.sub_portal_count += 1
                 elif char.isdigit(): # Teleport
-                    self.special_objs.append(Portal(x,y,int(char),tp_order[int(char)]))
+                    self.special_objs.append(Portal(x,y,int(char),tp_order[int(char)], game.assets["tp1"], game.assets["tp2"]))
                 elif char.islower(): # Key
-                    self.special_objs.append(Key(x,y,char))
+                    self.special_objs.append(Key(x,y,char, game.assets["key"]))
                 elif char.isupper(): # Door
                     #Conditions (Wall nearby) (again)
                     cond_a = (0 < row_id < len(layout)-1) and (layout[row_id + 1][col_id] == 'W' ) and (layout[row_id - 1][col_id] == 'W' ) # Vertical

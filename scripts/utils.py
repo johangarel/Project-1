@@ -1,7 +1,18 @@
 import pygame
 import random
+import os
+import sys
 from .entities import Wall
-from .assets_manager import get_path
+
+
+def get_path(*relative_path):
+    if getattr(sys, 'frozen', False):
+        # .exe
+        BASE_DIR = os.path.dirname(sys.executable)
+    else:
+        # coding
+        BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(BASE_DIR, *relative_path)
 
 def make_text(font,txt,color,x,y):
     if txt is None :

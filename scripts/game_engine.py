@@ -13,7 +13,7 @@ from .settings import (
     VICTORY_TEXT, LOADING_TEXT, TUTORIAL_FR_TEXT, TUTORIAL_EN_TEXT,
     KEY_COLORS, DEFAULT_KEY_COLOR, 
 )
-from .assets_manager import load_assets
+from .assets_manager import AssetsManager
 from .audio_manager import AudioManager
 from .level_manager import LevelManager
 from .progress_manager import ProgressManager
@@ -34,7 +34,7 @@ class Game:
     def __init__(self):
         # --- Pygame ---
         pygame.init()
-        self.assets = load_assets()
+        self.assets = AssetsManager()._assets
 
         # --- Dimensions ---
         self.width = WIDTH

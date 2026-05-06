@@ -1,6 +1,6 @@
 import json
 import os
-from .assets_manager import get_path
+from .utils import get_path
 
 SAVE_FILE = "save.json"
 

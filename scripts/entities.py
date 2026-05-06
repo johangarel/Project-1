@@ -1,8 +1,6 @@
 import pygame
 from .settings import TILE_SIZE, TORCH_EFFECT, KEY_COLORS
-from .assets_manager import load_assets
 
-ASSETS = load_assets()
 
 # ==================================================================
 # Player class
@@ -158,12 +156,12 @@ class Door :
 # ==================================================================
 
 class Winpad:
-    def __init__(self,x,y):
+    def __init__(self,x,y,img):
         self.x = x
         self.y = y
         self.width = 50
         self.rect = pygame.Rect(x, y, self.width, self.width)
-        self.img = ASSETS["winpad"]
+        self.img = img
 
     def move(self,x,y):
         self.x = x
@@ -173,12 +171,12 @@ class Winpad:
         return self.x < player.x + player.width // 2 < self.x + self.width and self.y < player.y + player.width // 2 < self.y + self.width
 
 class Portal:
-    def __init__(self,x,y,id, destination_id):
+    def __init__(self,x,y,id, destination_id, img, img2):
         self.x, self.y = x,y
         self.width = 50
         self.rect = pygame.Rect(x, y, self.width, self.width)
-        self.img = ASSETS["tp1"]
-        self.img2 = ASSETS["tp2"]
+        self.img = img
+        self.img2 = img2
         self.id = id
         self.dest_id = destination_id
 
@@ -189,35 +187,35 @@ class Portal:
         return self.x < player.x + player.width // 2 < self.x + self.width and self.y < player.y + player.width // 2 < self.y + self.width
 
 class SubMapPortal:
-    def __init__(self, x, y, target_map_index, spawn_pos):
+    def __init__(self, x, y, target_map_index, spawn_pos, img):
         self.x, self.y = x, y
         self.width = 50
         self.rect = pygame.Rect(x, y, self.width, self.width)
         self.target_map_index = target_map_index #Map index in "maps" in level config
         self.spawn_pos = spawn_pos # Player spawn point in new map
-        self.img = ASSETS["tp3"] 
+        self.img = img
 
     def is_touched(self, player: Player) -> bool:
         return self.x < player.x + player.width // 2 < self.x + self.width and self.y < player.y + player.width // 2 < self.y + self.width
 
 class Trap :
-    def __init__(self,x,y):
+    def __init__(self,x,y,img):
         self.x,self.y = x,y
         self.width = TILE_SIZE
         self.rect = pygame.Rect(x,y,TILE_SIZE,TILE_SIZE)
-        self.img = ASSETS["trap"]
+        self.img = img
     
     def is_touched(self,player: Player) -> bool:
         return self.rect.colliderect(player.rect)
 
 class Key :
-    def __init__(self,x,y,id):
+    def __init__(self,x,y,id,img):
         self.x,self.y = x,y
         self.width = TILE_SIZE
         self.collected = False
         self.door_id = id
         from .utils import tint_image
-        self.img = tint_image(ASSETS["key"],KEY_COLORS.get(self.door_id.lower(), (255, 255, 255)))
+        self.img = tint_image(img,KEY_COLORS.get(self.door_id.lower(), (255, 255, 255)))
 
     def is_touched(self,player: Player) -> bool:
         return self.x < player.x + player.width // 2 < self.x + self.width and self.y < player.y + player.width // 2 < self.y + self.width
@@ -229,11 +227,11 @@ class Key :
         self.collected = False
 
 class Light :
-    def __init__(self,x,y):
+    def __init__(self,x,y,img):
         self.x,self.y = x,y
         self.width = TILE_SIZE
         self.collected = False
-        self.img = ASSETS["torch"]
+        self.img = img
         self.effect = TORCH_EFFECT
         self.cooldown = 0.0
 

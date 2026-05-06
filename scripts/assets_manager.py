@@ -1,62 +1,112 @@
 import pygame
 import os
 import sys
+from .utils import get_path
 
-if getattr(sys, 'frozen', False):
-    # .exe
-    BASE_DIR = os.path.dirname(sys.executable)
-else:
-    # coding
-    BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+class AssetsManager:
+    """
+    Manager class for loading and storing all game assets (images, sounds, fonts).
+    
+    This class handles the initialization of pygame subsystems and provides
+    a dictionary-like interface to access loaded assets.
+    """
 
-def get_path(*relative_path):
-    return os.path.join(BASE_DIR, *relative_path)
+    def __init__(self):
+        
+        # Initialize pygame subsystems
+        pygame.mixer.init()
+        pygame.font.init()
+        
+        # Dictionary to store all assets
+        self._assets = {}
+        
+        # Load all asset categories
+        self._load_images()
+        self._load_sounds()
+        self._load_fonts()
+
+    def _load_images(self):
+        """
+        Load all image assets from the assets/images directory.
+        Stores loaded images in the internal assets dictionary.
+        """
+        images = {
+            "logo": "LOGO PROJECT 1.png",
+            "winpad": "_crown_new.png",
+            "tp1": "_tp_new.png",
+            "tp2": "_tp2_new.png",
+            "tp3": "_tp3_new.png",
+            "music_on": "MUSIC ON.png",
+            "music_off": "MUSIC OFF.png",
+            "home": "THE HOUSE.png",
+            "right_arrow": "_arrow_right.png",
+            "right_double_arrow": "_arrow_righter.png",
+            "left_arrow": "_arrow_left.png",
+            "left_double_arrow": "_arrow_lefter.png",
+            "tutorial_fr": "book_fr.png",
+            "tutorial_en": "book_en.png",
+            "trap": "trap.png",
+            "key": "key.png",
+            "star": "STAR.png",
+            "completed": "YES.png",
+            "torch": "Light.png",
+        }
+        
+        for key, filename in images.items():
+            try:
+                path = get_path("assets", "images", filename)
+                self._assets[key] = pygame.image.load(path)
+            except pygame.error as e:
+                print(f"Warning: Could not load image '{key}' from {filename}: {e}")
+
+    def _load_sounds(self):
+        """
+        Load all sound assets (music and sound effects) from assets/sounds directory.
+        Stores loaded sounds in the internal assets dictionary.
+        """
+        # Load background music tracks
+        music_files = {
+            "menu_music": "sounds/_cool_menu_music.mp3",
+            "music_victory": "sounds/_victory.mp3",
+            "music_level1": "sounds/_level1.mp3",
+            "music_level2": "sounds/_level2.mp3",
+            "music_level3": "sounds/_level3.mp3",
+            "music_level4": "sounds/_level4.mp3",
+            "music_level42": "sounds/_level42.mp3",
+        }
+        
+        # Load sound effects
+        sfx_files = {
+            "sfx_death": "sounds/sfx/sfx_reset.ogg",
+            "sfx_teleport": "sounds/sfx/sfx_teleport.ogg",
+            "sfx_win": "sounds/sfx/sfx_win.ogg",
+            "sfx_unlock": "sounds/sfx/sfx_unlock.ogg",
+            "sfx_play": "sounds/sfx/sfx_play.ogg",
+            "sfx_key": "sounds/sfx/sfx_key.ogg",
+            "sfx_walk1": "sounds/sfx/sfx_walk1.ogg",
+            "sfx_walk2": "sounds/sfx/sfx_walk2.ogg",
+            "sfx_walk3": "sounds/sfx/sfx_walk3.ogg",
+            "sfx_walk4": "sounds/sfx/sfx_walk4.ogg",
+            "sfx_light": "sounds/sfx/sfx_light.ogg",
+        }
+        
+        # Load all sound files
+        all_sounds = {**music_files, **sfx_files}
+        for key, relative_path in all_sounds.items():
+            try:
+                path = get_path("assets", relative_path)
+                self._assets[key] = pygame.mixer.Sound(path)
+            except pygame.error as e:
+                print(f"Warning: Could not load sound '{key}' from {relative_path}: {e}")
+
+    def _load_fonts(self):
+        """
+        Create and store font objects for different text sizes.
+        Uses default pygame font with various sizes for UI elements.
+        """
+        self._assets["font_main"] = pygame.font.Font(None, 144)
+        self._assets["font_medium"] = pygame.font.Font(None, 64)
+        self._assets["font_small"] = pygame.font.Font(None, 40)
 
 def load_assets():
-    pygame.mixer.init()
-    pygame.font.init()
-    assets = {"logo":pygame.image.load(get_path("assets","images","LOGO PROJECT 1.png")),
-            "winpad":pygame.image.load(get_path("assets","images","_crown_new.png")),
-            "tp1":pygame.image.load(get_path("assets","images","_tp_new.png")),
-            "tp2":pygame.image.load(get_path("assets","images","_tp2_new.png")),
-            "tp3":pygame.image.load(get_path("assets","images","_tp3_new.png")),
-            "music_on":pygame.image.load(get_path("assets","images","MUSIC ON.png")),
-            "music_off":pygame.image.load(get_path("assets","images","MUSIC OFF.png")),
-            "home":pygame.image.load(get_path("assets","images","THE HOUSE.png")),
-            "right_arrow":pygame.image.load(get_path("assets","images","_arrow_right.png")),
-            "right_double_arrow":pygame.image.load(get_path("assets","images","_arrow_righter.png")),
-            "left_arrow":pygame.image.load(get_path("assets","images","_arrow_left.png")),
-            "left_double_arrow":pygame.image.load(get_path("assets","images","_arrow_lefter.png")),
-            "tutorial_fr":pygame.image.load(get_path("assets","images","book_fr.png")),
-            "tutorial_en":pygame.image.load(get_path("assets","images","book_en.png")),
-            "trap":pygame.image.load(get_path("assets","images","trap.png")),
-            "key":pygame.image.load(get_path("assets","images","key.png")),
-            "star":pygame.image.load(get_path("assets","images","STAR.png")),
-            "completed":pygame.image.load(get_path("assets","images","YES.png")),
-            "torch":pygame.image.load(get_path("assets","images","Light.png")),
-
-            "menu_music":pygame.mixer.Sound(get_path("assets","sounds","_cool_menu_music.mp3")),
-            "music_victory":pygame.mixer.Sound(get_path("assets","sounds","_victory.mp3")),
-            "music_level1":pygame.mixer.Sound(get_path("assets","sounds","_level1.mp3")),
-            "music_level2":pygame.mixer.Sound(get_path("assets","sounds","_level2.mp3")),
-            "music_level3":pygame.mixer.Sound(get_path("assets","sounds","_level3.mp3")),
-            "music_level4":pygame.mixer.Sound(get_path("assets","sounds","_level4.mp3")),
-            "music_level42":pygame.mixer.Sound(get_path("assets","sounds","_level42.mp3")),
-
-            "sfx_death":pygame.mixer.Sound(get_path("assets","sounds","sfx","sfx_reset.ogg")),
-            "sfx_teleport":pygame.mixer.Sound(get_path("assets","sounds","sfx","sfx_teleport.ogg")),
-            "sfx_win":pygame.mixer.Sound(get_path("assets","sounds","sfx","sfx_win.ogg")),
-            "sfx_unlock":pygame.mixer.Sound(get_path("assets","sounds","sfx","sfx_unlock.ogg")),
-            "sfx_play":pygame.mixer.Sound(get_path("assets","sounds","sfx","sfx_play.ogg")),
-            "sfx_key":pygame.mixer.Sound(get_path("assets","sounds","sfx","sfx_key.ogg")),
-            "sfx_walk1":pygame.mixer.Sound(get_path("assets","sounds","sfx","sfx_walk1.ogg")),
-            "sfx_walk2":pygame.mixer.Sound(get_path("assets","sounds","sfx","sfx_walk2.ogg")),
-            "sfx_walk3":pygame.mixer.Sound(get_path("assets","sounds","sfx","sfx_walk3.ogg")),
-            "sfx_walk4":pygame.mixer.Sound(get_path("assets","sounds","sfx","sfx_walk4.ogg")),
-            "sfx_light":pygame.mixer.Sound(get_path("assets","sounds","sfx","sfx_light.ogg")),
-            
-            "font_main":pygame.font.Font(None, 144),
-            "font_medium":pygame.font.Font(None, 64),
-            "font_small":pygame.font.Font(None, 40)
-            } 
-    return assets
+    return AssetsManager()
