@@ -9,3 +9,4 @@ class GameState(Enum):
     VICTORY_MENU   = auto()
     FRENCH_TUTORIAL  = auto()
     ENGLISH_TUTORIAL = auto()
+    SETTINGS_MENU  = auto()

@@ -2,8 +2,8 @@ import os
 import pygame
 from pygame.locals import *
 
-from .entities import Player, Door, Key, Trap, Winpad, Portal, ButtonUI, Light, SubMapPortal
-from .utils import make_text, invert_color
+from .entities import Player, Door, Key, Trap, Winpad, Portal, ButtonUI, Light, SubMapPortal, TextUI
+from .utils import invert_color
 from .settings import (
     WIDTH, HEIGHT, NB_LEVELS, TILE_SIZE, FPS,
     PLAYER_SPEED, PLAYER_WIDTH, PLAYER_DEFAULT_POS,
@@ -11,7 +11,8 @@ from .settings import (
     LEVEL_CONFIGS, TORCH_EFFECT, TORCH_TIME,
     GAME_NAME, GAME_VERSION, START_TEXT, PLAY_TEXT, RECORD_TEXT,
     VICTORY_TEXT, LOADING_TEXT, TUTORIAL_FR_TEXT, TUTORIAL_EN_TEXT,
-    KEY_COLORS, DEFAULT_KEY_COLOR, 
+    KEY_COLORS, DEFAULT_KEY_COLOR, SETTINGS_TITLE, FPS_PRESETS, DEFAULT_FPS_LABEL, 
+    KEY_BINDINGS_DEFAULT
 )
 from .assets_manager import AssetsManager
 from .audio_manager import AudioManager
@@ -162,7 +163,24 @@ class Game:
             if self.button_book_en.is_pressed(mx, my):
                 self.state = GameState.ENGLISH_TUTORIAL
                 self.fade_to_black(self.width, self.height, self.fade_speed["normal"])
-
+            if self.button_settings.is_pressed(mx, my):
+                self.state = GameState.SETTINGS_MENU
+                self.fade_to_black(self.width, self.height, self.fade_speed["normal"])
+            
+        elif self.state == GameState.SETTINGS_MENU:
+            if self.button_home.is_pressed(mx, my):
+                self.state = GameState.MAIN_MENU
+                self.fade_to_black(self.width, self.height, self.fade_speed["normal"])
+            if self.button_music.is_pressed(mx, my):
+                music_on = self.audio.toggle()
+                self.progress.save_music_pref(music_on)
+            if self.button_fps_arrow_left.is_pressed(mx, my):
+                i = FPS_PRESETS.index(self.fps)
+                self.fps = FPS_PRESETS[len(FPS_PRESETS)-1] if i == 0 else FPS_PRESETS[i-1]
+            if self.button_fps_arrow_right.is_pressed(mx, my):
+                i = FPS_PRESETS.index(self.fps)
+                self.fps = FPS_PRESETS[0] if i == len(FPS_PRESETS)-1 else FPS_PRESETS[i+1]
+            
     # ==================================================================
     # Update
     # ==================================================================
@@ -196,13 +214,14 @@ class Game:
         self.player.move(dx, dy, walls, self)
 
         # Walking sfx
-        if self.walk_timer <= 0.0 :
-            if (x != self.player.x or y != self.player.y):
-                self.audio.play_sfx(self.audio.next_walk_sfx)
-                self.audio.decide_next_walk_sfx()
-                self.walk_timer = 0.3
-        else :
-            self.walk_timer -= self.dt
+        if self.audio.music_play :
+            if self.walk_timer <= 0.0 :
+                if (x != self.player.x or y != self.player.y):
+                    self.audio.play_sfx(self.audio.next_walk_sfx)
+                    self.audio.decide_next_walk_sfx()
+                    self.walk_timer = 0.3
+            else :
+                self.walk_timer -= self.dt
 
         self._process_objects()
 
@@ -214,7 +233,7 @@ class Game:
             if isinstance(obj, Portal) and obj.is_touched(self.player):
                 portal_contact = True
                 if self.player.can_teleport:
-                    if obj.dest_id is not None and obj.id != obj.dest_id:
+                    if obj.dest_id is not None and obj.id != obj.dest_id and self.audio.music_play :
                         self.audio.play_sfx("sfx_teleport")
                     self.player.use_portal(obj, self.levels.special_objs(self.maze))
                     self.player.can_teleport = False
@@ -227,14 +246,16 @@ class Game:
 
             # Key
             elif isinstance(obj, Key) and not obj.collected and obj.is_touched(self.player):
-                self.audio.play_sfx("sfx_key")
+                if self.audio.music_play :
+                    self.audio.play_sfx("sfx_key")
                 self.player.pick_up_key(obj)
 
             # Door
             elif isinstance(obj, Door) and not obj.opened:
                 if obj.rect.inflate(10, 10).colliderect(self.player.rect):
                     if obj.id in self.player.keys:
-                        self.audio.play_sfx("sfx_unlock")
+                        if self.audio.music_play :
+                            self.audio.play_sfx("sfx_unlock")
                         obj.open()
 
             # Trap
@@ -246,7 +267,8 @@ class Game:
             elif isinstance(obj, Light):
                 if obj.is_touched(self.player) and obj.cooldown == 0.0:
                     obj.collect()
-                    self.audio.play_sfx("sfx_light")
+                    if self.audio.music_play :
+                        self.audio.play_sfx("sfx_light")
                     obj.cooldown = TORCH_TIME
                     self.levels.vision_radius += TORCH_EFFECT
                 if 0.0 < obj.cooldown <= TORCH_TIME:
@@ -258,13 +280,14 @@ class Game:
 
             # Sub-map
             elif isinstance(obj, SubMapPortal) and obj.is_touched(self.player):
-                layout = self.levels.load_sub_map(self.maze, obj.target_map_index, self)
+                layout = self.levels.load_sub_map(self.maze, obj.target_map_index, self, False)
                 self.player.teleport(
                     obj.spawn_pos[0] + self.player.width / 2,
                     obj.spawn_pos[1] + self.player.width / 2,
                 )
                 self._resize_window(layout)
-                self.audio.play_sfx("sfx_teleport")
+                if self.audio.music_play :
+                    self.audio.play_sfx("sfx_teleport")
                 break
 
         if not portal_contact:
@@ -291,6 +314,8 @@ class Game:
             self._render_victory()
         elif self.state == GameState.MAIN_MENU:
             self._render_main_menu()
+        elif self.state == GameState.SETTINGS_MENU:
+            self._render_settings()
 
         # Music icon animation
         if self.audio.music_animation:
@@ -333,11 +358,10 @@ class Game:
         if self.levels.has_fow(self.maze):
             self._draw_fog()
 
-        timer_txt, timer_pos = make_text(
-            self.assets["font_small"], f"Time : {self.seconds}", (255, 255, 255),
-            self.width - 100, 30,
-        )
-        self.screen.blit(timer_txt, timer_pos)
+        timer_txt = TextUI(
+            self.width-100, 30, self.assets["font_small"], f"Time : {self.seconds}", (255, 255, 255)
+            )
+        self.screen.blit(timer_txt.txt, timer_txt.pos)
 
     def _render_level_menu(self):
         font_color = self.font_color
@@ -353,35 +377,38 @@ class Game:
                          (level_btn.x + 20, level_btn.y + 20,
                           level_btn.width - 40, level_btn.height - 40))
 
-        t, tpos = self.level_texts[self.level_menu - 1]
-        self.screen.blit(t, tpos)
+        t = self.level_texts[self.level_menu - 1]
+        self.screen.blit(t.txt, t.pos)
 
-        play_t, play_pos = make_text(self.assets["font_main"], PLAY_TEXT, level_color,
-                                     self.center_x, self.center_y)
-        self.screen.blit(play_t, play_pos)
+        play_t = TextUI(
+            self.center_x, self.center_y, self.assets["font_main"], PLAY_TEXT, level_color
+            )
+        self.screen.blit(play_t.txt, play_t.pos)
 
         stars = self.level_stars.get(self.level_menu, 0)
-        star_txt, star_pos = make_text(self.assets["font_medium"], f": {stars}", inv_color,
-                                       self.center_x + 20, self.center_y + 200)
-        w, _ = star_txt.get_size()
+        star_txt = TextUI(
+            self.center_x + 20, self.center_y + 200, self.assets["font_medium"], f": {stars}", inv_color
+            )
+        w, _ = star_txt.txt.get_size()
         self.screen.blit(self.assets["star"], (self.center_x - 75, self.center_y + 175))
-        self.screen.blit(star_txt, (star_pos.left + w / 2 - 25, star_pos.top))
+        self.screen.blit(star_txt.txt, (star_txt.pos.left + w / 2 - 25, star_txt.pos.top))
 
         if self.progress.is_completed(self.level_menu):
             self.screen.blit(self.assets["completed"], (self.center_x - 75, self.center_y + 175))
 
-        rec_txt, rec_pos = make_text(
-            self.assets["font_medium"],
-            f"Record : {self.progress.best_time_display(self.level_menu)}",
-            inv_color, self.center_x, self.center_y + 275,
-        )
-        self.screen.blit(rec_txt, rec_pos)
+        rec_txt = TextUI(
+            self.center_x, self.center_y + 275, self.assets["font_medium"], 
+            f"Record : {self.progress.best_time_display(self.level_menu)}", inv_color
+            )
+        self.screen.blit(rec_txt.txt, rec_txt.pos)
 
         if self.level_menu in self.level_names:
-            li_txt, li_pos = make_text(self.assets["font_small"],
-                                       f"Level {self.level_menu}", inv_color,
-                                       self.center_x, 100)
-            self.screen.blit(li_txt, li_pos)
+            li_txt = TextUI(
+                self.center_x, 100, self.assets["font_small"],
+                f"Level {self.level_menu}",
+                inv_color
+            )
+            self.screen.blit(li_txt.txt, li_txt.pos)
 
         for btn in (self.button_left_arrow, self.button_right_arrow,
                     self.button_left_arrow2, self.button_right_arrow2):
@@ -390,38 +417,72 @@ class Game:
     def _render_tutorial(self):
         texts = (self.tutorial_fr if self.state == GameState.FRENCH_TUTORIAL
                  else self.tutorial_en)
-        for t, tp in texts:
-            self.screen.blit(t, tp)
+        for t in texts:
+            self.screen.blit(t.txt, t.pos)
         self.screen.blit(self.button_home.img, (self.button_home.x, self.button_home.y))
 
     def _render_victory(self):
         pygame.draw.rect(self.screen, (255, 255, 0), (50, 50, self.width - 100, self.height - 100))
         pygame.draw.rect(self.screen, (0, 0, 0),     (75, 75, self.width - 150, self.height - 150))
-        self.screen.blit(self.victory_text, self.victory_textpos)
+        self.screen.blit(self.victory_text.txt, self.victory_text.pos)
         self.screen.blit(self.button_home.img, (self.button_home.x, self.button_home.y))
-        self.screen.blit(self.final_timer_text, self.final_timer_textpos)
+        self.screen.blit(self.final_timer_text.txt, self.final_timer_text.pos)
         if self.display_record_txt:
-            self.screen.blit(self.record_txt, self.record_pos)
+            self.screen.blit(self.record_txt.txt, self.record_txt.pos)
 
     def _render_main_menu(self):
-        self.screen.blit(self.name_text, self.name_textpos)
+        self.screen.blit(self.name_text.txt, self.name_text.pos)
         pygame.draw.rect(self.screen, (255, 255, 0),
                          (self.button_start.x, self.button_start.y,
                           self.button_start.width, self.button_start.height))
         pygame.draw.rect(self.screen, (0, 0, 0),
                          (self.button_start.x + 10, self.button_start.y + 10,
                           self.button_start.width - 20, self.button_start.height - 20))
-        self.screen.blit(self.start_text, self.start_textpos)
+        self.screen.blit(self.start_text.txt, self.start_text.pos)
         self.screen.blit(self.button_book_fr.img, (self.button_book_fr.x, self.button_book_fr.y))
         self.screen.blit(self.button_book_en.img, (self.button_book_en.x, self.button_book_en.y))
 
-        w, _ = self.stars_display.get_size()
+        w, _ = self.stars_display.txt.get_size()
         self.screen.blit(self.assets["star"], (25, 25))
-        self.screen.blit(self.stars_display, (self.stars_displaypos.left + w / 2, self.stars_displaypos.top))
-        self.screen.blit(self.v_txt, self.v_pos)
+        self.screen.blit(self.stars_display.txt, (self.stars_display.pos.left + w / 2, self.stars_display.pos.top))
+        self.screen.blit(self.v_txt.txt, self.v_txt.pos)
+
+        self.screen.blit(self.button_settings.img,(self.button_settings.x,self.button_settings.y))
+    
+    def _render_settings(self):
+        self.screen.blit(self.settings_txt.txt, self.settings_txt.pos)
+        self.screen.blit(self.button_home.img, (self.button_home.x, self.button_home.y))
+
+        # FPS section
+        self.screen.blit(self.fps_label.txt, self.fps_label.pos)
+        self.screen.blit(self.button_fps_arrow_left.img, (self.button_fps_arrow_left.x, self.button_fps_arrow_left.y))
+        self.screen.blit(self.button_fps_arrow_right.img, (self.button_fps_arrow_right.x, self.button_fps_arrow_right.y))
+        fps_value = TextUI(
+            self.button_fps_arrow_right.centerx - 125, self.button_fps_arrow_left.centery, self.assets["font_medium"], str(self.fps), (255, 255, 255)
+        )
+        self.screen.blit(fps_value.txt, fps_value.pos)
+
+        # Key bindings section
+        key_title = TextUI(
+            self.center_x, self.fps_label.centery + 100, self.assets["font_medium"], "Key Bindings", (255, 255, 0)
+        )
+        self.screen.blit(key_title.txt, key_title.pos)
+        pygame.draw.rect(self.screen,(255,255,0),(key_title.centerx-400,key_title.centery,200,2),2 )
+        pygame.draw.rect(self.screen, (255,255,0), (key_title.centerx + 200, key_title.centery, 200, 2), 2)
+
+        for binding_name, button in self.button_key_bindings.items():
+            pygame.draw.rect(self.screen, (255, 255, 0),
+                             (button.x, button.y, button.width, button.height), 2)
+            key_code = KEY_BINDINGS_DEFAULT.get(binding_name, "")
+            display_key = key_code.replace("K_", "").upper()
+            item_text = TextUI(
+                button.centerx, button.centery, self.assets["font_small"], display_key, (255, 255, 255)
+            )
+            self.screen.blit(item_text.txt, item_text.pos)
+
 
     # ==================================================================
-    # Transitions & actions
+    # Transitions // actions
     # ==================================================================
 
     def fade_to_black(self, width, height, speed=10):
@@ -460,9 +521,8 @@ class Game:
         self.center_x = self.screen.get_rect().centerx
         self.center_y = self.screen.get_rect().centery
 
-        self.stars_display, self.stars_displaypos = make_text(
-            self.assets["font_medium"], str(self.progress.nb_stars),
-            (255, 255, 255), 100, 50,
+        self.stars_display = TextUI(
+            100, 50, self.assets["font_medium"], str(self.progress.nb_stars), (255, 255, 255)
         )
 
         self.audio.switch_to_menu()
@@ -471,15 +531,17 @@ class Game:
     def _respawn(self):
         self.levels.reset_objects(self.maze)
         self.levels.reset_vision()
-        self.audio.play_sfx("sfx_death")
-        layout = self.levels.load_sub_map(self.maze, 0, self)
+        if self.audio.music_play :
+            self.audio.play_sfx("sfx_death")
+        layout = self.levels.load_sub_map(self.maze, 0, self, False)
         self.player.respawn()
         self._resize_window(layout)
         self.timer = pygame.time.get_ticks()
         self.clock.tick()
 
     def _handle_victory(self):
-        self.audio.play_sfx("sfx_win")
+        if self.audio.music_play :
+            self.audio.play_sfx("sfx_win")
         self.player.victory()
         self.fade_to_black(self.width, self.height, self.fade_speed["slow"])
 
@@ -494,9 +556,9 @@ class Game:
         self.center_x = self.screen.get_rect().centerx
         self.center_y = self.screen.get_rect().centery
 
-        self.final_timer_text, self.final_timer_textpos = make_text(
-            self.assets["font_main"], f"Time : {self.seconds}",
-            (255, 255, 255), self.center_x, self.center_y,
+        self.final_timer_text = TextUI(
+            self.center_x, self.center_y, self.assets["font_main"],
+            f"Time : {self.seconds}", (255, 255, 255)
         )
         self.state = GameState.VICTORY_MENU
         self.maze = 0
@@ -507,9 +569,10 @@ class Game:
         self.maze       = level_id
         self.display_record_txt = False
 
-        self.audio.play_sfx("sfx_play")
+        if self.audio.music_play :
+            self.audio.play_sfx("sfx_play")
         self.fade_to_black(self.width, self.height, self.fade_speed["normal"])
-        self.screen.blit(self.loading_text, self.loading_textpos)
+        self.screen.blit(self.loading_text.txt, self.loading_text.pos)
         pygame.display.flip()
 
         cfg = self.levels.level_configs.get(level_id)
@@ -517,7 +580,7 @@ class Game:
             if not cfg["loaded"] and level_id != 3:
                 layout = self.levels.load_level(level_id, self)
             else:
-                layout = self.levels.load_sub_map(level_id, 0, self)
+                layout = self.levels.load_sub_map(level_id, 0, self, True)
             self._resize_window(layout)
 
         self.audio.switch_to_level(level_id)
@@ -549,52 +612,47 @@ class Game:
         self.level_menu = min(self.nb_levels, self.level_menu + 10)
 
     # ==================================================================
-    # UI Construction (called once in __init__)
+    # UI Construction
     # ==================================================================
 
     def _build_ui(self):
         a = self.assets
         cx, cy = self.center_x, self.center_y
 
-        self.name_text, self.name_textpos = make_text(
-            a["font_main"], GAME_NAME, (255, 255, 255), cx, cy - 200)
-        self.start_text, self.start_textpos = make_text(
-            a["font_main"], START_TEXT, (255, 255, 0), cx, cy)
-        self.victory_text, self.victory_textpos = make_text(
-            a["font_main"], VICTORY_TEXT, (255, 255, 0), cx, cy // 2)
-        self.loading_text, self.loading_textpos = make_text(
-            pygame.font.Font(None, 144), LOADING_TEXT, (255, 255, 255), cx, cy)
-        self.stars_display, self.stars_displaypos = make_text(
-            a["font_medium"], str(self.progress.nb_stars), (255, 255, 255), 100, 50)
-        self.v_txt, self.v_pos = make_text(
-            a["font_small"], GAME_VERSION, (255, 255, 255),
-            self.width - 25 - 6 * len(GAME_VERSION), 25)
-        self.record_txt, self.record_pos = make_text(
-            a["font_medium"], RECORD_TEXT, (255, 255, 255), cx, cy + 75)
+        self.name_text = TextUI(cx, cy - 200, a["font_main"], GAME_NAME, (255, 255, 255))
+        self.start_text = TextUI(cx, cy, a["font_main"], START_TEXT, (255, 255, 0))
+        self.victory_text = TextUI(cx, cy // 2, a["font_main"], VICTORY_TEXT, (255, 255, 0))
+        self.loading_text = TextUI(cx, cy, a["font_main"], LOADING_TEXT, (255, 255, 255))
+        self.stars_display = TextUI(100, 50, a["font_medium"], str(self.progress.nb_stars), (255, 255, 255))
+        self.v_txt = TextUI(2*cx -25 -6*len(GAME_VERSION), 25, a["font_small"], GAME_VERSION, (255, 255, 255))
+        self.record_txt = TextUI(cx, cy + 75, a["font_medium"], RECORD_TEXT, (255, 255, 255))
+        self.settings_txt = TextUI(cx, 100, a["font_main"], SETTINGS_TITLE, (255, 255, 0))
         self.display_record_txt = False
+
+        self.fps_label = TextUI(
+            130, self.settings_txt.centery + 150, self.assets["font_medium"], "FPS", (255, 255, 0)
+        )
 
         # Level texts
         self.level_texts = [
-            make_text(a["font_main"], f"Level {n + 1}", (255, 255, 255), cx, cy - 200)
-            for n in range(NB_LEVELS)
+            TextUI(cx, cy - 200, a["font_main"], f"Level {n + 1}", (255, 255, 255)) for n in range(NB_LEVELS)
         ]
         for lvl_id, name in LEVEL_NAMES.items():
             color = self.font_color if lvl_id == 67 else self.second_font_color
-            self.level_texts[lvl_id - 1] = make_text(a["font_main"], name, color, cx, cy - 200)
+            self.level_texts[lvl_id - 1] = TextUI(cx, cy - 200, a["font_main"], name, color)
 
         # Tutorials
         self.tutorial_fr = [
-            make_text(a["font_small"], txt, (255, 255, 255), cx, TILE_SIZE * (i + 2))
+            TextUI(cx, TILE_SIZE * (i + 2), a["font_small"], txt, (255, 255, 255))
             for i, txt in enumerate(TUTORIAL_FR_TEXT)
         ]
         self.tutorial_en = [
-            make_text(a["font_small"], txt, (255, 255, 255), cx, TILE_SIZE * (i + 2))
+            TextUI(cx, TILE_SIZE * (i + 2), a["font_small"], txt, (255, 255, 255))
             for i, txt in enumerate(TUTORIAL_EN_TEXT)
         ]
 
         # Placeholder for level end text
-        self.final_timer_text, self.final_timer_textpos = make_text(
-            a["font_main"], "", (255, 255, 255), cx, cy)
+        self.final_timer_text = TextUI(cx, cy + 50, a["font_medium"], "", (255, 255, 255))
 
         # Buttons
         self.button_start        = ButtonUI(cx, cy, 400, 150, None)
@@ -606,3 +664,15 @@ class Game:
         self.button_left_arrow2  = ButtonUI(100, cy + 50, 50, 50, a["left_double_arrow"])
         self.button_home         = ButtonUI(50, 50, 75, 75, a["home"])
         self.button_levels       = [ButtonUI(cx, cy, 400, 250, None) for _ in range(NB_LEVELS)]
+        self.button_settings     = ButtonUI(self.width - 100, self.height - 100, 50, 50, a["settings"])
+        self.button_music        = ButtonUI(cx - 250, cy - 75, 120, 120, a["music_on"])
+        self.button_fps_arrow_left  = ButtonUI(cx + 100, self.fps_label.centery, 50, 50, a["left_arrow"])
+        self.button_fps_arrow_right = ButtonUI(self.button_fps_arrow_left.centerx + 250, self.fps_label.centery, 50, 50, a["right_arrow"])
+        self.button_key_bindings = {
+            "up":     ButtonUI(cx + 220, cy - 40+100, 120, 50, None),
+            "down":   ButtonUI(cx + 380, cy - 40+100, 120, 50, None),
+            "left":   ButtonUI(cx + 220, cy + 140, 120, 50, None),
+            "right":  ButtonUI(cx + 380, cy + 140, 120, 50, None),
+            "reset":  ButtonUI(cx + 220, cy + 220, 120, 50, None),
+            "menu":   ButtonUI(cx + 380, cy + 220, 120, 50, None),
+        }

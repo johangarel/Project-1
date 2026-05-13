@@ -14,15 +14,6 @@ def get_path(*relative_path):
         BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     return os.path.join(BASE_DIR, *relative_path)
 
-def make_text(font,txt,color,x,y):
-    if txt is None :
-        txt = ""
-    t = font.render(txt, 3, color)
-    tpos = t.get_rect()
-    tpos.centerx = x
-    tpos.centery = y
-    return t, tpos
-
 def load_map(filename) -> list :
     path = get_path("levels",filename)
     level_map = []

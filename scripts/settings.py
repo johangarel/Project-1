@@ -5,7 +5,9 @@ HEIGHT = 740
 NB_LEVELS = 101
 TILE_SIZE = 40
 
-FPS = 240
+FPS = 240 # Remove after implementing the FPS_PRESETS system
+FPS_PRESETS = [60,120,240]
+DEFAULT_FPS_LABEL = "240"
 
 PLAYER_SPEED = 500
 PLAYER_WIDTH = 25
@@ -66,6 +68,7 @@ PLAY_TEXT = "PLAY"
 VICTORY_TEXT = "You win !"
 LOADING_TEXT = "Loading..."
 RECORD_TEXT = "New record !"
+SETTINGS_TITLE = "Settings"
 
 TUTORIAL_FR_TEXT = [
     "Se déplacer : ZQSD",
@@ -138,3 +141,13 @@ SUBMAP_ROUTES = {
 
 # Objects that walls shouldn't connect with
 BANNED_BUILDING_CHARACTERS = ["P","V","L","S"]
+
+KEY_BINDINGS_DEFAULT = {
+    "up":     "K_z",
+    "down":   "K_s",
+    "left":   "K_q",
+    "right":  "K_d",
+    "music":  "K_e",
+    "reset":  "K_r",
+    "menu":   "K_ESCAPE",
+}

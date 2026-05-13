@@ -266,3 +266,14 @@ class ButtonUI:
 
     def is_pressed(self,x,y) -> bool:
         return self.x <= x <= self.x + self.width and self.y <= y <= self.y + self.height
+
+class TextUI:
+    def __init__(self,x,y,font,txt,color):
+        if txt is None :
+            txt = ""
+        self.centerx = x
+        self.centery = y
+        self.font = font
+        self.txt = font.render(txt, 3, color)
+        self.color = color
+        self.pos = self.txt.get_rect(center=(x,y))

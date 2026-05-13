@@ -40,18 +40,22 @@ class LevelManager:
     # Loading
     # ------------------------------------------------------------------
 
-    def load_sub_map(self, maze_id: int, map_index: int, game) -> None:
+    def load_sub_map(self, maze_id: int, map_index: int, game, first_map: bool) -> None:
         """Load a sub-map and update internal lists."""
         config = self.level_configs[maze_id]
         layout = self._build_layout(maze_id, map_index)
 
         current_maze = Maze(layout, config["tps"], self._player, game, map_index=map_index)
+        spawn = current_maze.spawn_point
 
         self.level_map_list[maze_id - 1]    = layout
         self.wall_list[maze_id - 1]         = current_maze.walls
         self.special_objs_list[maze_id - 1] = current_maze.special_objs
         self.vision_radius = VISION_RADIUS
 
+        if first_map :
+            self._player.move_spawn(spawn[0], spawn[1])
+            self._player.respawn()
         return layout  # returned so Game can recalculate dimensions
 
     def load_level(self, maze_id: int, game) -> None:

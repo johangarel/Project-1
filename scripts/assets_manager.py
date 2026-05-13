@@ -50,6 +50,7 @@ class AssetsManager:
             "star": "STAR.png",
             "completed": "YES.png",
             "torch": "Light.png",
+            "settings":"settings.png"
         }
         
         for key, filename in images.items():
