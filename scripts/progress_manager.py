@@ -1,12 +1,29 @@
+import pygame
 import json
 import os
 from .utils import get_path
+from .settings import DEFAULT_MUSIC_VOL, DEFAULT_SFX_VOL, FPS
 
 SAVE_FILE = "save.json"
 
-
 def _default_save() -> dict:
-    return {"music": True, "total_stars": 0, "levels": {}}
+    return {
+        "music": True, 
+        "total_stars": 0, 
+        "levels": {},
+        "music_vol": DEFAULT_MUSIC_VOL,
+        "sfx_vol": DEFAULT_SFX_VOL,
+        "fps": FPS,
+        "keys": {
+            "up": pygame.K_z,
+            "down": pygame.K_s,
+            "left": pygame.K_q,
+            "right": pygame.K_d,
+            "reset": pygame.K_r,
+            "music": pygame.K_e,
+            "menu": pygame.K_ESCAPE
+        }
+    }
 
 
 def load_game() -> dict:
@@ -39,6 +56,9 @@ class ProgressManager:
         # In-memory caches
         self.nb_stars: int = self._data["total_stars"]
         self.music_on: bool = self._data["music"]
+        self.music_vol : float = self._data["music_vol"]
+        self.sfx_vol : float = self._data["sfx_vol"]
+        self.keys: dict = self._data.get("keys", _default_save()["keys"])
 
         self.level_time: list = [None] * nb_levels
         self.reward_collected: list = [False] * nb_levels
@@ -101,7 +121,15 @@ class ProgressManager:
         save_game(self._data)
         return new_record
 
-    def save_music_pref(self, music_on: bool) -> None:
+    def save_music_pref(self, music_on: bool):
         self.music_on = music_on
         self._data["music"] = music_on
+        save_game(self._data)
+    
+    def save_settings(self, new_keys: dict, fps, music_vol, sfx_vol):
+        self.keys = new_keys
+        self._data["keys"] = new_keys
+        self._data["fps"] = fps
+        self._data["music_vol"] = music_vol
+        self._data["sfx_vol"] = sfx_vol
         save_game(self._data)

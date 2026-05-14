@@ -11,8 +11,9 @@ from .settings import (
     LEVEL_CONFIGS, TORCH_EFFECT, TORCH_TIME,
     GAME_NAME, GAME_VERSION, START_TEXT, PLAY_TEXT, RECORD_TEXT,
     VICTORY_TEXT, LOADING_TEXT, TUTORIAL_FR_TEXT, TUTORIAL_EN_TEXT,
-    KEY_COLORS, DEFAULT_KEY_COLOR, SETTINGS_TITLE, FPS_PRESETS, 
-    KEY_BINDINGS_DEFAULT, HEIGHT_SETTINGS, SAVE_TEXT
+    KEY_COLORS, DEFAULT_KEY_COLOR, SETTINGS_TITLE, FPS_PRESETS,
+    KEY_BINDINGS_DEFAULT, HEIGHT_SETTINGS, SAVE_TEXT, RESET_TEXT,
+    DEFAULT_MUSIC_VOL, DEFAULT_SFX_VOL
 )
 from .assets_manager import AssetsManager
 from .audio_manager import AudioManager
@@ -51,7 +52,7 @@ class Game:
 
         # --- Managers ---
         self.progress  = ProgressManager(NB_LEVELS)
-        self.audio     = AudioManager(self.assets, {"music": self.progress.music_on})
+        self.audio     = AudioManager(self.assets, {"music": self.progress.music_on, "music_vol": self.progress.music_vol, "sfx_vol": self.progress.sfx_vol})
         self.levels    = LevelManager(
             player=Player(PLAYER_DEFAULT_POS, PLAYER_SPEED, PLAYER_WIDTH),
             level_configs={k: dict(v) for k, v in LEVEL_CONFIGS.items()},
@@ -63,6 +64,7 @@ class Game:
         self.maze       = 0      # active level (1-based, 0 = menu)
         self.level_menu = 0
         self.active     = True
+        self.binding_action = None
 
         # --- Timing ---
         self.clock      = pygame.time.Clock()
@@ -104,24 +106,29 @@ class Game:
                 self.active = False
 
             elif event.type == KEYDOWN:
+                if self.binding_action and event.key not in self.progress.keys.values():
+                    self.progress.keys[self.binding_action] = event.key
+                    self.binding_action = None # On arrête l'écoute
+                    return
+                
                 # Music [E]
-                if event.key == K_e:
+                if event.key == self.progress.keys["music"]:
                     music_on = self.audio.toggle()
                     self.progress.save_music_pref(music_on)
 
                 # Menu return [Escape]
-                elif event.key == K_ESCAPE and self.state != GameState.MAIN_MENU:
+                elif event.key == self.progress.keys["menu"] and self.state != GameState.MAIN_MENU:
                     self._go_to_menu()
 
                 # Level menu navigation
                 elif self.state == GameState.LEVEL_MENU:
-                    if event.key == K_d:
+                    if event.key == self.progress.keys["right"]:
                         self._press_right()
-                    elif event.key == K_q:
+                    elif event.key == self.progress.keys["left"]:
                         self._press_left()
 
                 # Reset level [R]
-                elif self.state == GameState.MAZE and event.key == K_r:
+                elif self.state == GameState.MAZE and event.key == self.progress.keys["reset"]:
                     self._respawn()
 
             elif event.type == MOUSEBUTTONDOWN and event.button == 1:
@@ -173,15 +180,54 @@ class Game:
         elif self.state == GameState.SETTINGS_MENU:
             if self.button_home.is_pressed(mx, my):
                 self._go_to_menu()
-            if self.button_music.is_pressed(mx, my):
-                music_on = self.audio.toggle()
-                self.progress.save_music_pref(music_on)
+
             if self.button_fps_arrow_left.is_pressed(mx, my):
                 i = FPS_PRESETS.index(self.fps)
                 self.fps = FPS_PRESETS[len(FPS_PRESETS)-1] if i == 0 else FPS_PRESETS[i-1]
             if self.button_fps_arrow_right.is_pressed(mx, my):
                 i = FPS_PRESETS.index(self.fps)
                 self.fps = FPS_PRESETS[0] if i == len(FPS_PRESETS)-1 else FPS_PRESETS[i+1]
+    
+            if self.button_vol_music_left.is_pressed(mx, my) and self.audio.music_vol > 0:
+                self.audio.music_vol = round(self.audio.music_vol - 0.1, 1)
+                self.audio.update_volume()
+            if self.button_vol_music_right.is_pressed(mx, my) and self.audio.music_vol < 1:
+                self.audio.music_vol = round(self.audio.music_vol + 0.1, 1)
+                self.audio.update_volume()
+            if self.button_vol_sfx_left.is_pressed(mx, my) and self.audio.sfx_vol > 0:
+                self.audio.sfx_vol = round(self.audio.sfx_vol - 0.1, 1)
+            if self.button_vol_sfx_right.is_pressed(mx, my) and self.audio.sfx_vol < 1:
+                self.audio.sfx_vol = round(self.audio.sfx_vol + 0.1, 1)
+
+            if self.button_key_bindings["up"].is_pressed(mx, my):
+                self.binding_action = "up"
+            if self.button_key_bindings["down"].is_pressed(mx, my):
+                self.binding_action = "down"
+            if self.button_key_bindings["left"].is_pressed(mx, my):
+                self.binding_action = "left"
+            if self.button_key_bindings["right"].is_pressed(mx, my):
+                self.binding_action = "right"
+            if self.button_key_bindings["reset"].is_pressed(mx, my):
+                self.binding_action = "reset"
+            if self.button_key_bindings["menu"].is_pressed(mx, my):
+                self.binding_action = "menu"
+            
+            if self.button_save_settings.is_pressed(mx, my):
+                self.progress.save_settings(self.progress.keys, self.fps, self.audio.music_vol, self.audio.sfx_vol)
+
+            if self.button_reset_settings.is_pressed(mx, my):
+                self.fps = FPS
+                self.audio.music_vol = DEFAULT_MUSIC_VOL
+                self.audio.sfx_vol = DEFAULT_SFX_VOL
+                self.progress.keys = {
+                    "up": K_z,
+                    "down": K_s,
+                    "left": K_q,
+                    "right": K_d,
+                    "reset": K_r,
+                    "music": K_e,
+                    "menu": K_ESCAPE
+                }
             
     # ==================================================================
     # Update
@@ -202,10 +248,10 @@ class Game:
 
         dx, dy = 0.0, 0.0
         dist = self.player.speed * self.dt
-        if keys[K_q]: dx -= dist
-        if keys[K_d]: dx += dist
-        if keys[K_z]: dy -= dist
-        if keys[K_s]: dy += dist
+        if keys[self.progress.keys["left"]]: dx -= dist
+        if keys[self.progress.keys["right"]]: dx += dist
+        if keys[self.progress.keys["up"]]: dy -= dist
+        if keys[self.progress.keys["down"]]: dy += dist
 
         # Obstacles = walls + closed doors
         walls = list(self.levels.walls(self.maze))
@@ -500,14 +546,19 @@ class Game:
         }
 
         for binding_name, button in self.button_key_bindings.items():
+            color = (255,0,0) if binding_name == self.binding_action else (255,255,0)
             label_text = TextUI(
                 button.x - 80, button.centery, self.assets["font_small"], binding_labels[binding_name], (255, 255, 255)
             )
             self.screen.blit(label_text.txt, label_text.pos)
-            pygame.draw.rect(self.screen, (255, 255, 0),
+            pygame.draw.rect(self.screen, color,
                              (button.x, button.y, button.width, button.height), 2)
-            key_code = KEY_BINDINGS_DEFAULT.get(binding_name, "")
-            display_key = key_code.replace("K_", "").upper()
+            key_code = self.progress.keys.get(binding_name, "")
+            display_key = chr(key_code).upper()
+            if binding_name == self.binding_action :
+                display_key = "..."
+            elif key_code == 27 :
+                display_key = "ESCAPE"
             item_text = TextUI(
                 button.centerx, button.centery, self.assets["font_small"], display_key, (255, 255, 255)
             )
@@ -517,6 +568,12 @@ class Game:
         pygame.draw.rect(self.screen,(255,255,0),(self.center_x-100,HEIGHT_SETTINGS-75,200,50))
         save_text = TextUI(self.button_save_settings.centerx,self.button_save_settings.centery, self.assets["font_small"], SAVE_TEXT, (0,0,0))
         self.screen.blit(save_text.txt, save_text.pos)
+
+        # Reset button
+        pygame.draw.rect(self.screen, (0, 0, 0), (self.button_reset_settings.x, self.button_reset_settings.y, self.button_reset_settings.width, self.button_reset_settings.height))
+        pygame.draw.rect(self.screen, (255, 0, 0), (self.button_reset_settings.x, self.button_reset_settings.y, self.button_reset_settings.width, self.button_reset_settings.height), 2)
+        reset_text = TextUI(self.button_reset_settings.centerx, self.button_reset_settings.centery, self.assets["font_small"], RESET_TEXT, (255, 0, 0))
+        self.screen.blit(reset_text.txt, reset_text.pos)
 
     # ==================================================================
     # Transitions // actions
@@ -744,4 +801,5 @@ class Game:
             "menu":   ButtonUI(right_col, y_level+160, 120, 50, None),
         }
 
+        self.button_reset_settings = ButtonUI(cx - 200, HEIGHT_SETTINGS-50, 100, 50, None)
         self.button_save_settings = ButtonUI(cx, HEIGHT_SETTINGS-50, 100, 50, None)

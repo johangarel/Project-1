@@ -1,5 +1,5 @@
 import random
-from .settings import NB_LEVELS, DEFAULT_MUSIC_VOL, DEFAULT_SFX_VOL
+from .settings import NB_LEVELS
 
 
 class AudioManager:
@@ -14,8 +14,8 @@ class AudioManager:
 
         # Active music
         self._active: object = assets["menu_music"]
-        self.music_vol = DEFAULT_MUSIC_VOL
-        self.sfx_vol = DEFAULT_SFX_VOL
+        self.music_vol = save_data["music_vol"]
+        self.sfx_vol = save_data["sfx_vol"]
 
         # Build playlist indexed by level (1-based, index 0 = menu)
         self._playlist = [None] * (NB_LEVELS + 1)
@@ -27,7 +27,7 @@ class AudioManager:
         self._playlist[42] = assets["music_level42"]
 
         # Initialize volumes
-        volume = 0.5 if self.music_play else 0.0
+        volume = self.music_vol if self.music_play else 0.0
         for track in self._playlist:
             if track is not None:
                 track.set_volume(volume)
@@ -50,7 +50,7 @@ class AudioManager:
             self._active.stop()
         self._active = track
         if self._active is not None:
-            vol = 0.5 if self.music_play else 0.0
+            vol = self.music_vol if self.music_play else 0.0
             self._active.set_volume(vol)
             self._active.play(loops=-1)
 
@@ -69,7 +69,7 @@ class AudioManager:
     def toggle(self) -> bool:
         """Toggle mute/unmute. Returns the new state."""
         self.music_play = not self.music_play
-        volume = 0.5 if self.music_play else 0.0
+        volume = self.music_vol if self.music_play else 0.0
         if self._active is not None:
             self._active.set_volume(volume)
         self.time_display = 2.0
@@ -78,6 +78,8 @@ class AudioManager:
 
     def play_sfx(self, name: str) -> None:
         sfx = self._assets.get(name)
+        if self.music_play :
+            sfx.set_volume(self.sfx_vol)
         if sfx:
             sfx.play()
 
@@ -92,4 +94,7 @@ class AudioManager:
     def decide_next_walk_sfx(self):
         l = [sound for sound in ["sfx_walk1","sfx_walk2","sfx_walk3","sfx_walk4"] if sound != self.next_walk_sfx]
         self.next_walk_sfx = random.choice(l)
-
+    
+    def update_volume(self):
+        if self._active is not None:
+            self._active.set_volume(self.music_vol if self.music_play else 0.0)

@@ -73,6 +73,7 @@ LOADING_TEXT = "Loading..."
 RECORD_TEXT = "New record !"
 SETTINGS_TITLE = "Settings"
 SAVE_TEXT = "Save changes"
+RESET_TEXT = "Reset"
 
 TUTORIAL_FR_TEXT = [
     "Se déplacer : ZQSD",
