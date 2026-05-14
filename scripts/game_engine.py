@@ -11,8 +11,8 @@ from .settings import (
     LEVEL_CONFIGS, TORCH_EFFECT, TORCH_TIME,
     GAME_NAME, GAME_VERSION, START_TEXT, PLAY_TEXT, RECORD_TEXT,
     VICTORY_TEXT, LOADING_TEXT, TUTORIAL_FR_TEXT, TUTORIAL_EN_TEXT,
-    KEY_COLORS, DEFAULT_KEY_COLOR, SETTINGS_TITLE, FPS_PRESETS, DEFAULT_FPS_LABEL, 
-    KEY_BINDINGS_DEFAULT
+    KEY_COLORS, DEFAULT_KEY_COLOR, SETTINGS_TITLE, FPS_PRESETS, 
+    KEY_BINDINGS_DEFAULT, HEIGHT_SETTINGS, SAVE_TEXT
 )
 from .assets_manager import AssetsManager
 from .audio_manager import AudioManager
@@ -166,11 +166,13 @@ class Game:
             if self.button_settings.is_pressed(mx, my):
                 self.state = GameState.SETTINGS_MENU
                 self.fade_to_black(self.width, self.height, self.fade_speed["normal"])
+                self.height = HEIGHT_SETTINGS
+                os.environ["SDL_VIDEO_WINDOW_POS"] = "center"
+                self.screen = pygame.display.set_mode((self.width, self.height))
             
         elif self.state == GameState.SETTINGS_MENU:
             if self.button_home.is_pressed(mx, my):
-                self.state = GameState.MAIN_MENU
-                self.fade_to_black(self.width, self.height, self.fade_speed["normal"])
+                self._go_to_menu()
             if self.button_music.is_pressed(mx, my):
                 music_on = self.audio.toggle()
                 self.progress.save_music_pref(music_on)
@@ -457,20 +459,51 @@ class Game:
         self.screen.blit(self.fps_label.txt, self.fps_label.pos)
         self.screen.blit(self.button_fps_arrow_left.img, (self.button_fps_arrow_left.x, self.button_fps_arrow_left.y))
         self.screen.blit(self.button_fps_arrow_right.img, (self.button_fps_arrow_right.x, self.button_fps_arrow_right.y))
-        fps_value = TextUI(
+        self.fps_value = TextUI(
             self.button_fps_arrow_right.centerx - 125, self.button_fps_arrow_left.centery, self.assets["font_medium"], str(self.fps), (255, 255, 255)
         )
-        self.screen.blit(fps_value.txt, fps_value.pos)
+        self.screen.blit(self.fps_value.txt, self.fps_value.pos)
+
+        # Music section
+        self.screen.blit(self.music_label.txt, self.music_label.pos)
+        self.screen.blit(self.button_vol_music_left.img, (self.button_vol_music_left.x, self.button_vol_music_left.y))
+        self.screen.blit(self.button_vol_music_right.img, (self.button_vol_music_right.x, self.button_vol_music_right.y))
+        self.music_vol = TextUI(
+            self.button_vol_music_right.centerx - 125, self.button_vol_music_left.centery, self.assets["font_medium"], str(int(100*self.audio.music_vol))+" %", (255, 255, 255)
+        )
+        self.screen.blit(self.music_vol.txt, self.music_vol.pos)
+
+        # SFX section
+        self.screen.blit(self.sfx_label.txt, self.sfx_label.pos)
+        self.screen.blit(self.button_vol_sfx_left.img, (self.button_vol_sfx_left.x, self.button_vol_sfx_left.y))
+        self.screen.blit(self.button_vol_sfx_right.img, (self.button_vol_sfx_right.x, self.button_vol_sfx_right.y))
+        self.sfx_vol = TextUI(
+            self.button_vol_sfx_right.centerx - 125, self.button_vol_sfx_left.centery, self.assets["font_medium"], str(int(100*self.audio.sfx_vol))+" %", (255, 255, 255)
+        )
+        self.screen.blit(self.sfx_vol.txt, self.sfx_vol.pos)
 
         # Key bindings section
-        key_title = TextUI(
-            self.center_x, self.fps_label.centery + 100, self.assets["font_medium"], "Key Bindings", (255, 255, 0)
+        self.key_title = TextUI(
+            self.center_x, self.sfx_label.centery + 100, self.assets["font_medium"], "Key Bindings", (255, 255, 0)
         )
-        self.screen.blit(key_title.txt, key_title.pos)
-        pygame.draw.rect(self.screen,(255,255,0),(key_title.centerx-400,key_title.centery,200,2),2 )
-        pygame.draw.rect(self.screen, (255,255,0), (key_title.centerx + 200, key_title.centery, 200, 2), 2)
+        self.screen.blit(self.key_title.txt, self.key_title.pos)
+        pygame.draw.rect(self.screen,(255,255,0),(self.key_title.centerx-400,self.key_title.centery,200,2))
+        pygame.draw.rect(self.screen, (255,255,0), (self.key_title.centerx + 200, self.key_title.centery, 200, 2))
+
+        binding_labels = {
+            "up": "Up",
+            "down": "Down",
+            "left": "Left",
+            "right": "Right",
+            "reset": "Reset",
+            "menu": "Menu"
+        }
 
         for binding_name, button in self.button_key_bindings.items():
+            label_text = TextUI(
+                button.x - 80, button.centery, self.assets["font_small"], binding_labels[binding_name], (255, 255, 255)
+            )
+            self.screen.blit(label_text.txt, label_text.pos)
             pygame.draw.rect(self.screen, (255, 255, 0),
                              (button.x, button.y, button.width, button.height), 2)
             key_code = KEY_BINDINGS_DEFAULT.get(binding_name, "")
@@ -480,6 +513,10 @@ class Game:
             )
             self.screen.blit(item_text.txt, item_text.pos)
 
+        # Save button
+        pygame.draw.rect(self.screen,(255,255,0),(self.center_x-100,HEIGHT_SETTINGS-75,200,50))
+        save_text = TextUI(self.button_save_settings.centerx,self.button_save_settings.centery, self.assets["font_small"], SAVE_TEXT, (0,0,0))
+        self.screen.blit(save_text.txt, save_text.pos)
 
     # ==================================================================
     # Transitions // actions
@@ -630,8 +667,18 @@ class Game:
         self.display_record_txt = False
 
         self.fps_label = TextUI(
-            130, self.settings_txt.centery + 150, self.assets["font_medium"], "FPS", (255, 255, 0)
+            130, self.settings_txt.centery + 100, self.assets["font_medium"], "FPS", (255, 255, 0)
         )
+        self.music_label = TextUI(
+            130, self.fps_label.centery + 75, self.assets["font_medium"], "Music", (255, 255, 0)
+        )
+        self.sfx_label = TextUI(
+            130, self.music_label.centery + 75, self.assets["font_medium"], "SFX", (255, 255, 0)
+        )
+        self.key_title = TextUI(
+            self.center_x, self.sfx_label.centery + 100, self.assets["font_medium"], "Key Bindings", (255, 255, 0)
+        )
+
 
         # Level texts
         self.level_texts = [
@@ -666,13 +713,35 @@ class Game:
         self.button_levels       = [ButtonUI(cx, cy, 400, 250, None) for _ in range(NB_LEVELS)]
         self.button_settings     = ButtonUI(self.width - 100, self.height - 100, 50, 50, a["settings"])
         self.button_music        = ButtonUI(cx - 250, cy - 75, 120, 120, a["music_on"])
+
         self.button_fps_arrow_left  = ButtonUI(cx + 100, self.fps_label.centery, 50, 50, a["left_arrow"])
         self.button_fps_arrow_right = ButtonUI(self.button_fps_arrow_left.centerx + 250, self.fps_label.centery, 50, 50, a["right_arrow"])
+        self.button_vol_music_left  = ButtonUI(cx + 100, self.music_label.centery, 50, 50, a["left_arrow"])
+        self.button_vol_music_right = ButtonUI(self.button_vol_music_left.centerx + 250, self.music_label.centery, 50, 50, a["right_arrow"])
+        self.button_vol_sfx_left    = ButtonUI(cx + 100, self.sfx_label.centery, 50, 50, a["left_arrow"])
+        self.button_vol_sfx_right   = ButtonUI(self.button_vol_sfx_left.centerx + 250, self.sfx_label.centery, 50, 50, a["right_arrow"])
+
+        self.fps_value = TextUI(
+            self.button_fps_arrow_right.centerx - 125, self.button_fps_arrow_left.centery, self.assets["font_medium"], str(self.fps), (255, 255, 255)
+        )
+        self.music_vol = TextUI(
+            self.button_vol_music_right.centerx - 125, self.button_vol_music_left.centery, self.assets["font_medium"], str(int(100*self.audio.music_vol))+" %", (255,255,255)
+        )
+        self.sfx_vol = TextUI(
+            self.button_vol_sfx_right.centerx - 125, self.button_vol_sfx_left.centery, self.assets["font_medium"], str(int(100*self.audio.sfx_vol))+" %", (255,255,255)
+        )
+
+        right_col = self.fps_value.centerx
+        left_col = cx - 150
+        y_level = self.key_title.centery + 80
+
         self.button_key_bindings = {
-            "up":     ButtonUI(cx + 220, cy - 40+100, 120, 50, None),
-            "down":   ButtonUI(cx + 380, cy - 40+100, 120, 50, None),
-            "left":   ButtonUI(cx + 220, cy + 140, 120, 50, None),
-            "right":  ButtonUI(cx + 380, cy + 140, 120, 50, None),
-            "reset":  ButtonUI(cx + 220, cy + 220, 120, 50, None),
-            "menu":   ButtonUI(cx + 380, cy + 220, 120, 50, None),
+            "up":     ButtonUI(left_col, y_level, 120, 50, None),
+            "down":   ButtonUI(right_col, y_level, 120, 50, None),
+            "left":   ButtonUI(left_col, y_level+80, 120, 50, None),
+            "right":  ButtonUI(right_col, y_level+80, 120, 50, None),
+            "reset":  ButtonUI(left_col, y_level+160, 120, 50, None),
+            "menu":   ButtonUI(right_col, y_level+160, 120, 50, None),
         }
+
+        self.button_save_settings = ButtonUI(cx, HEIGHT_SETTINGS-50, 100, 50, None)

@@ -1,5 +1,5 @@
 import random
-from .settings import NB_LEVELS
+from .settings import NB_LEVELS, DEFAULT_MUSIC_VOL, DEFAULT_SFX_VOL
 
 
 class AudioManager:
@@ -14,6 +14,8 @@ class AudioManager:
 
         # Active music
         self._active: object = assets["menu_music"]
+        self.music_vol = DEFAULT_MUSIC_VOL
+        self.sfx_vol = DEFAULT_SFX_VOL
 
         # Build playlist indexed by level (1-based, index 0 = menu)
         self._playlist = [None] * (NB_LEVELS + 1)

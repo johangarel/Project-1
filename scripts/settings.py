@@ -1,13 +1,16 @@
 
 WIDTH = 960
 HEIGHT = 740
+HEIGHT_SETTINGS = 840
 
 NB_LEVELS = 101
 TILE_SIZE = 40
 
-FPS = 240 # Remove after implementing the FPS_PRESETS system
+FPS = 240
 FPS_PRESETS = [60,120,240]
-DEFAULT_FPS_LABEL = "240"
+
+DEFAULT_MUSIC_VOL = 0.5
+DEFAULT_SFX_VOL = 0.5
 
 PLAYER_SPEED = 500
 PLAYER_WIDTH = 25
@@ -69,6 +72,7 @@ VICTORY_TEXT = "You win !"
 LOADING_TEXT = "Loading..."
 RECORD_TEXT = "New record !"
 SETTINGS_TITLE = "Settings"
+SAVE_TEXT = "Save changes"
 
 TUTORIAL_FR_TEXT = [
     "Se déplacer : ZQSD",
