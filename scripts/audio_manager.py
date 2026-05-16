@@ -78,10 +78,10 @@ class AudioManager:
 
     def play_sfx(self, name: str) -> None:
         sfx = self._assets.get(name)
-        if self.music_play :
-            sfx.set_volume(self.sfx_vol)
-        if sfx:
-            sfx.play()
+        if sfx is None :
+            return
+        sfx.set_volume(self.sfx_vol if self.music_play else 0.0)
+        sfx.play()
 
     def update(self, dt: float) -> None:
         """To be called each frame to manage the music icon animation."""

@@ -73,9 +73,6 @@ class Player:
                     dy -= direction
         
         self.rect = pygame.Rect(self.x,self.y,self.width,self.width)
-    
-    def get_pos(self):
-        print(self.x,self.y)
 
     def move_spawn(self,x,y):
         if x != None and y != None :

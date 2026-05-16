@@ -2,78 +2,190 @@ from .entities import Wall, Trap, Portal, Key, Door, Player, Winpad, Light, SubM
 from .utils import optimise_walls
 from .settings import WALL_THICKNESS, BANNED_BUILDING_CHARACTERS, SUBMAP_ROUTES
 
-class Maze :
-    def __init__(self,layout,tp_order,player,game, map_index=0):
-        assert isinstance(player,Player)
-        self.special_objs = []
-        self.spawn_point = player.default_pos
+class Maze:
+    def __init__(self, layout, tp_order, player, game, map_index: int = 0):
+        assert isinstance(player, Player)
+
+        self.special_objs   = []
+        self.spawn_point    = player.default_pos
         self.sub_portal_count = 0
 
-        raw_walls = []
-        wall_thickness = WALL_THICKNESS 
-        offset = (game.tile_size // 2) - (wall_thickness // 2)
+        wall_thickness = WALL_THICKNESS
+        offset         = (game.tile_size // 2) - (wall_thickness // 2)
 
-        for row_id, row in enumerate(layout): 
+        raw_walls = []
+
+        for row_id, row in enumerate(layout):
             for col_id, char in enumerate(row):
                 x = col_id * game.tile_size
                 y = row_id * game.tile_size
 
-                if char == "W":  # Wall
-                    banned = BANNED_BUILDING_CHARACTERS
+                result = self._parse_tile(
+                    char, x, y, row_id, col_id,
+                    layout, tp_order, game, map_index,
+                    wall_thickness, offset,
+                )
 
-                    # Conditions
-                    down = row_id < len(layout)-1 and layout[row_id+1][col_id].isupper() and layout[row_id+1][col_id] not in banned
-                    up = row_id > 0 and layout[row_id-1][col_id].isupper() and layout[row_id-1][col_id] not in banned
-                    right = col_id < len(row)-1 and layout[row_id][col_id+1].isupper() and layout[row_id][col_id+1] not in banned
-                    left = col_id > 0 and layout[row_id][col_id-1].isupper() and layout[row_id][col_id-1] not in banned
+                if result == "spawn":
+                    self.spawn_point = (x, y)
+                elif isinstance(result, Wall):
+                    raw_walls.append(result)
+                elif isinstance(result, list):          # multiple walls from one tile
+                    raw_walls.extend(result)
+                elif result is not None:                # any special object
+                    self.special_objs.append(result)
 
-                    # 1. Vertical wall
-                    if up or down:
-                        v_start = y if up else y + offset
-                        v_height = game.tile_size if (up and down) else (game.tile_size // 2 + wall_thickness // 2)
-                        raw_walls.append(Wall(x + offset, v_start, wall_thickness, v_height))
-
-                    # 2. Honrizontal wall
-                    if left or right:
-                        h_start = x if left else x + offset
-                        h_width = game.tile_size if (left and right) else (game.tile_size // 2 + wall_thickness // 2)
-                        raw_walls.append(Wall(h_start, y + offset, h_width, wall_thickness))
-                    
-                    # 3. Isolated wall
-                    if not (up or down or left or right):
-                        raw_walls.append(Wall(x + offset, y + offset, wall_thickness, wall_thickness))
-
-                elif char == "P":  # Player Start
-                    self.spawn_point = (x,y)
-                elif char == "V":  # Victory
-                    self.special_objs.append(Winpad(x, y, game.assets["winpad"]))
-                elif char == "T": # Trap
-                    self.special_objs.append(Trap(x,y, game.assets["trap"]))
-                elif char == "L": # Light object
-                    self.special_objs.append(Light(x,y, game.assets["torch"]))
-                elif char == "S": # Sub map portal
-                    config = None
-                    level_id = game.maze
-                    # Search path
-                    if level_id in SUBMAP_ROUTES and map_index in SUBMAP_ROUTES[level_id] and self.sub_portal_count in SUBMAP_ROUTES[level_id][map_index]:
-                        config = SUBMAP_ROUTES[level_id][map_index][self.sub_portal_count]
-                    # Create the portal if the path exists
-                    if config:
-                        portal = SubMapPortal(x, y, config["target_map"], config["spawn_pos"], game.assets["tp3"])
-                        self.special_objs.append(portal)
-                        self.sub_portal_count += 1
-                elif char.isdigit(): # Teleport
-                    self.special_objs.append(Portal(x,y,int(char),tp_order[int(char)], game.assets["tp1"], game.assets["tp2"]))
-                elif char.islower(): # Key
-                    self.special_objs.append(Key(x,y,char, game.assets["key"]))
-                elif char.isupper(): # Door
-                    #Conditions (Wall nearby) (again)
-                    cond_a = (0 < row_id < len(layout)-1) and (layout[row_id + 1][col_id] == 'W' ) and (layout[row_id - 1][col_id] == 'W' ) # Vertical
-                    cond_b = (0 < col_id < len(row)-1) and (layout[row_id][col_id + 1] == 'W' ) and (layout[row_id][col_id - 1] == 'W' ) # Horizontal
-                    #Connect to walls
-                    if cond_a :
-                        self.special_objs.append(Door(x + game.tile_size/2 - 5, y, 10, game.tile_size,char))
-                    if cond_b :
-                        self.special_objs.append(Door(x, y + game.tile_size/2 - 5, game.tile_size, 10,char))
-                    
         self.walls = optimise_walls(raw_walls)
+
+    # ------------------------------------------------------------------
+    # tile parser – one method, one responsibility
+    # ------------------------------------------------------------------
+
+    def _parse_tile(
+        self, char, x, y, row_id, col_id,
+        layout, tp_order, game, map_index,
+        wall_thickness, offset,
+    ):
+        """
+        Returns:
+          - "spawn"       → caller sets self.spawn_point
+          - Wall / list   → added to raw_walls
+          - entity object → added to special_objs
+          - None          → empty tile, nothing to do
+        """
+
+        # ── Empty / space ───────────────────────────────────────────────
+        if char == " ":
+            return None
+
+        # ── Wall ────────────────────────────────────────────────────────
+        if char == "W":
+            return self._build_wall_segments(
+                x, y, row_id, col_id, layout, game.tile_size, wall_thickness, offset
+            )
+
+        # ── Player spawn ────────────────────────────────────────────────
+        if char == "P":
+            return "spawn"
+
+        # ── Victory pad ─────────────────────────────────────────────────
+        if char == "V":
+            return Winpad(x, y, game.assets["winpad"])
+
+        # ── Trap ────────────────────────────────────────────────────────
+        if char == "T":
+            return Trap(x, y, game.assets["trap"])
+
+        # ── Light / torch ───────────────────────────────────────────────
+        if char == "L":
+            return Light(x, y, game.assets["torch"])
+
+        # ── Sub-map portal ──────────────────────────────────────────────
+        if char == "S":
+            return self._build_submap_portal(x, y, game, map_index)
+
+        # ── Teleport portal (digit) ─────────────────────────────────────
+        if char.isdigit():
+            idx = int(char)
+            return Portal(x, y, idx, tp_order[idx], game.assets["tp1"], game.assets["tp2"])
+
+        # ── Key (lowercase letter) ──────────────────────────────────────
+        if char.islower():
+            return Key(x, y, char, game.assets["key"])
+
+        # ── Door (uppercase letter, not W/P/V/T/L/S) ───────────────────
+        if char.isupper():
+            return self._build_door(x, y, row_id, col_id, layout, game)
+
+        return None
+
+    # ------------------------------------------------------------------
+    # Wall geometry helpers
+    # ------------------------------------------------------------------
+
+    def _build_wall_segments(
+        self, x, y, row_id, col_id, layout, tile_size, wall_thickness, offset
+    ):
+        """Returns a list of Wall segments for a 'W' tile."""
+        banned = BANNED_BUILDING_CHARACTERS
+
+        def _upper_not_banned(ch):
+            return ch.isupper() and ch not in banned
+
+        down  = row_id < len(layout) - 1 and _upper_not_banned(layout[row_id + 1][col_id])
+        up    = row_id > 0              and _upper_not_banned(layout[row_id - 1][col_id])
+        right = col_id < len(layout[row_id]) - 1 and _upper_not_banned(layout[row_id][col_id + 1])
+        left  = col_id > 0                        and _upper_not_banned(layout[row_id][col_id - 1])
+
+        segments = []
+
+        # 1. Vertical segment
+        if up or down:
+            v_start  = y if up  else y + offset
+            v_height = tile_size if (up and down) else (tile_size // 2 + wall_thickness // 2)
+            segments.append(Wall(x + offset, v_start, wall_thickness, v_height))
+
+        # 2. Horizontal segment
+        if left or right:
+            h_start = x if left else x + offset
+            h_width = tile_size if (left and right) else (tile_size // 2 + wall_thickness // 2)
+            segments.append(Wall(h_start, y + offset, h_width, wall_thickness))
+
+        # 3. Isolated dot
+        if not (up or down or left or right):
+            segments.append(Wall(x + offset, y + offset, wall_thickness, wall_thickness))
+
+        return segments
+
+    def _build_door(self, x, y, row_id, col_id, layout, game):
+        """Returns a Door (or a list of two Doors) for an uppercase letter tile."""
+        doors = []
+        ts    = game.tile_size
+
+        cond_vertical   = (
+            0 < row_id < len(layout) - 1
+            and layout[row_id + 1][col_id] == "W"
+            and layout[row_id - 1][col_id] == "W"
+        )
+        cond_horizontal = (
+            0 < col_id < len(layout[row_id]) - 1
+            and layout[row_id][col_id + 1] == "W"
+            and layout[row_id][col_id - 1] == "W"
+        )
+
+        char = layout[row_id][col_id]
+
+        if cond_vertical:
+            doors.append(Door(x + ts / 2 - 5, y, 10, ts, char))
+        if cond_horizontal:
+            doors.append(Door(x, y + ts / 2 - 5, ts, 10, char))
+
+        # Return a single object when possible so the caller can append/extend uniformly
+        if len(doors) == 1:
+            return doors[0]
+        return doors if doors else None
+
+    def _build_submap_portal(self, x, y, game, map_index):
+        """Returns a SubMapPortal if a route is configured, else None."""
+        level_id = game.maze
+        routes   = SUBMAP_ROUTES
+
+        config = None
+        if (
+            level_id in routes
+            and map_index in routes[level_id]
+            and self.sub_portal_count in routes[level_id][map_index]
+        ):
+            config = routes[level_id][map_index][self.sub_portal_count]
+
+        if config:
+            portal = SubMapPortal(
+                x, y,
+                config["target_map"],
+                config["spawn_pos"],
+                game.assets["tp3"],
+            )
+            self.sub_portal_count += 1
+            return portal
+
+        return None

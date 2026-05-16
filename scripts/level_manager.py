@@ -43,10 +43,10 @@ class LevelManager:
     def load_sub_map(self, maze_id: int, map_index: int, game, first_map: bool) -> None:
         """Load a sub-map and update internal lists."""
         config = self.level_configs[maze_id]
-        layout = self._build_layout(maze_id, map_index)
+        layout, spawn_override = self._build_layout(maze_id, map_index)
 
         current_maze = Maze(layout, config["tps"], self._player, game, map_index=map_index)
-        spawn = current_maze.spawn_point
+        spawn = spawn_override or current_maze.spawn_point
 
         self.level_map_list[maze_id - 1]    = layout
         self.wall_list[maze_id - 1]         = current_maze.walls
@@ -61,10 +61,10 @@ class LevelManager:
     def load_level(self, maze_id: int, game) -> None:
         """Load the complete level (sub-map 0) and mark the level as loaded."""
         config = self.level_configs[maze_id]
-        layout = self._build_layout(maze_id, 0)
+        layout, spawn_override = self._build_layout(maze_id, 0)
 
         current_maze = Maze(layout, config["tps"], self._player, game, map_index=0)
-        spawn = current_maze.spawn_point
+        spawn = spawn_override or current_maze.spawn_point
 
         self.level_map_list[maze_id - 1]    = layout
         self.wall_list[maze_id - 1]         = current_maze.walls
@@ -101,17 +101,22 @@ class LevelManager:
             return self._generate_level3(map_index)
 
         config = self.level_configs[maze_id]
-        return load_map(config["file"][map_index])
+        return load_map(config["file"][map_index]), None
 
     def _generate_level3(self, map_index: int) -> list:
+        spawn_override = (int(TILE_SIZE / 4), TILE_SIZE)
+
         if map_index == 0:
-            layout = generate_custom_maze(31, 21, ('P', 0, 1), ('S', 30, 19))
+            layout = generate_custom_maze(31, 21, ("P", 0, 1), ("S", 30, 19))
+
         elif map_index == 1:
-            layout = generate_custom_maze(31, 21, (' ', 0, 1), ('S', 30, 1))
-            row_list = list(layout[19])
-            row_list[30] = 'S'
-            layout[19] = "".join(row_list)
+            layout = generate_custom_maze(31, 21, (" ", 0, 1), ("S", 30, 1))
+            # Add a second 'S' exit at the bottom-right corner
+            row_list       = list(layout[19])
+            row_list[30]   = "S"
+            layout[19]     = "".join(row_list)
+
         else:  # map_index == 2
-            layout = generate_custom_maze(31, 21, (' ', 0, 1), ('V', 30, 19))
-        self._player.move_spawn(TILE_SIZE / 4, TILE_SIZE)
-        return layout
+            layout = generate_custom_maze(31, 21, (" ", 0, 1), ("V", 30, 19))
+
+        return layout, spawn_override

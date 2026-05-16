@@ -17,9 +17,9 @@ def get_path(*relative_path):
 def load_map(filename) -> list :
     path = get_path("levels",filename)
     level_map = []
-    file = open(path,"r")
-    for line in file :
-        level_map.append(line.rstrip('\n'))
+    with open(path, "r") as file:
+        for line in file:
+            level_map.append(line.rstrip('\n'))
     return level_map
 
 def optimise_walls(walls) -> list :
@@ -29,7 +29,7 @@ def optimise_walls(walls) -> list :
     # Work on rectangles for optimization
     rects = [w.rect.copy() for w in walls]
     
-    # Honrizontal fusion
+    # Horizontal fusion
     rects.sort(key=lambda r: (r.y, r.x))
     h_fused = []
     if rects:
