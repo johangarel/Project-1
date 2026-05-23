@@ -1,5 +1,5 @@
 import pygame
-from .settings import TILE_SIZE, TORCH_EFFECT, KEY_COLORS
+from .settings import TILE_SIZE, TORCH_EFFECT, KEY_COLORS, PLAYER_WIDTH
 
 
 # ==================================================================
@@ -7,7 +7,7 @@ from .settings import TILE_SIZE, TORCH_EFFECT, KEY_COLORS
 # ==================================================================
 
 class Player:
-    def __init__(self,pos: tuple,speed: int,width: int):
+    def __init__(self,pos: tuple,speed: int,width: int, img):
         self.x, self.y = pos
         self.default_pos = pos
         self.respawn_pos = pos
@@ -16,7 +16,9 @@ class Player:
         self.win = False
         self.keys = []
         self.rect = pygame.Rect(self.x,self.y,width,width)
+        self.img = img
         self.can_teleport = False
+        self.direction = "right"
 
     def modify_speed(self,speed: int):
         self.speed = speed
@@ -43,9 +45,17 @@ class Player:
 
     def move(self,dx: int,dy: int,walls,game):
         assert isinstance(walls,list)
-        #horizontal
+
         if self.win :
             return
+        
+        # Update direction
+        if  dx > 0:  self.direction = "right"
+        elif  dx < 0: self.direction = "left"
+        elif  dy < 0: self.direction = "up"
+        elif  dy > 0: self.direction = "down"
+
+        # horizontal
         if dx != 0:
             if self.can_move(dx, 0, walls, game):
                 self.x += dx
@@ -111,6 +121,7 @@ class Player:
         self.respawn_pos = (x,y)
         self.keys = []
         self.rect = pygame.Rect(self.x,self.y,self.width,self.width)
+        self.direction = "right"
 
     def respawn(self):
         x,y = self.respawn_pos
@@ -123,6 +134,90 @@ class Player:
         assert isinstance(key,Key)
         self.keys.append(key.door_id)
         key.collect()
+
+# ==================================================================
+# Eneny class
+# ==================================================================
+
+class Enemy:
+    def __init__(self, x, y, patrol_path: list, speed_patrol, speed_chase, detection_radius, img, map_index):
+        self.x, self.y = x, y
+        self.width = PLAYER_WIDTH
+        self.rect = pygame.Rect(x, y, self.width, self.width)
+
+        self.patrol_path = patrol_path  # pos tuple list (Ex : [(200,200),(455,201)])
+        self.patrol_index = 0           # current waypoint
+        self.speed_patrol = speed_patrol
+        self.speed_chase = speed_chase
+        self.detection_radius = detection_radius
+        self.map_index = map_index      # sub-map
+        self.direction = "right"
+        self.img = img
+
+        self.state = "patrol"           # "patrol" | "chase"
+    
+    def _distance_to(self, player: Player):
+        dx = (self.x + self.width/2) - (player.x + player.width/2)
+        dy = (self.y + self.width/2) - (player.y + player.width/2)
+        return (dx**2 + dy**2) ** 0.5
+
+    def _move_towards(self, tx, ty, speed, walls, game, dt):
+        """Move the enemy towards (tx,ty) while respecting the walls."""
+        dx = tx - self.x
+        dy = ty - self.y
+        dist = (dx**2 + dy**2) ** 0.5
+        if dist == 0:
+            return
+        step = speed * dt
+        norm_dx = dx / dist * min(step, dist)
+        norm_dy = dy / dist * min(step, dist)
+
+        # Update direction
+        if abs(norm_dx) > abs(norm_dy):
+            self.direction = "right" if norm_dx > 0 else "left"
+        else:
+            self.direction = "down" if norm_dy > 0 else "up"
+
+        # Movement
+        future_x = pygame.Rect(self.x + norm_dx, self.y, self.width, self.width)
+        future_y = pygame.Rect(self.x, self.y + norm_dy, self.width, self.width)
+
+        if not any(future_x.colliderect(w.rect) for w in walls):
+            self.x += norm_dx
+        if not any(future_y.colliderect(w.rect) for w in walls):
+            self.y += norm_dy
+
+        self.rect = pygame.Rect(self.x, self.y, self.width, self.width)
+
+    def update(self, player, walls, game, dt):
+        dist = self._distance_to(player)
+
+        if dist <= self.detection_radius:
+            self.state = "chase"
+        else:
+            self.state = "patrol"
+
+        if self.state == "chase":
+            self._move_towards(player.x, player.y, self.speed_chase, walls, game, dt)
+
+        else:  # patrol
+            if not self.patrol_path:
+                return
+            target = self.patrol_path[self.patrol_index]
+            self._move_towards(target[0], target[1], self.speed_patrol, walls, game, dt)
+
+            # Move to next waypoint
+            if abs(self.x - target[0]) < 2 and abs(self.y - target[1]) < 2:
+                self.patrol_index = (self.patrol_index + 1) % len(self.patrol_path)
+
+    def is_touching(self, player):
+        return self.rect.colliderect(player.rect)
+    
+    def reset(self):
+        self.x, self.y = self.patrol_path[0] if self.patrol_path else (self.x, self.y)
+        self.patrol_index = 0
+        self.state = "patrol"
+        self.rect = pygame.Rect(self.x, self.y, self.width, self.width)
 
 # ==================================================================
 # Obstacles classes
@@ -246,7 +341,7 @@ class Light :
 # ==================================================================
 
 class ButtonUI:
-    def __init__(self,x,y,width,height,img):
+    def __init__(self,x,y,width: int,height: int,img):
         self.centerx = x
         self.centery = y
         self.width = width

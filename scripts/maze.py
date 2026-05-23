@@ -1,14 +1,16 @@
 from .entities import Wall, Trap, Portal, Key, Door, Player, Winpad, Light, SubMapPortal
 from .utils import optimise_walls
-from .settings import WALL_THICKNESS, BANNED_BUILDING_CHARACTERS, SUBMAP_ROUTES
+from .settings import WALL_THICKNESS, BANNED_BUILDING_CHARACTERS, TILE_SIZE
 
 class Maze:
-    def __init__(self, layout, tp_order, player, game, map_index: int = 0):
+    def __init__(self, layout, tp_order, player, game, map_index: int = 0, submap_routes: dict = None):
         assert isinstance(player, Player)
 
         self.special_objs   = []
         self.spawn_point    = player.default_pos
+        self.enemy_spawns   = []
         self.sub_portal_count = 0
+        self.submap_routes  = submap_routes or {}
 
         wall_thickness = WALL_THICKNESS
         offset         = (game.tile_size // 2) - (wall_thickness // 2)
@@ -28,6 +30,8 @@ class Maze:
 
                 if result == "spawn":
                     self.spawn_point = (x, y)
+                elif result == "enemy_spawn":
+                    self.enemy_spawns.append((x, y))
                 elif isinstance(result, Wall):
                     raw_walls.append(result)
                 elif isinstance(result, list):          # multiple walls from one tile
@@ -83,6 +87,10 @@ class Maze:
         # ── Sub-map portal ──────────────────────────────────────────────
         if char == "S":
             return self._build_submap_portal(x, y, game, map_index)
+        
+        # ── Enemy ───────────────────────────────────────────────────────
+        if char == "E":
+            return "enemy_spawn"
 
         # ── Teleport portal (digit) ─────────────────────────────────────
         if char.isdigit():
@@ -168,21 +176,32 @@ class Maze:
     def _build_submap_portal(self, x, y, game, map_index):
         """Returns a SubMapPortal if a route is configured, else None."""
         level_id = game.maze
-        routes   = SUBMAP_ROUTES
+        routes   = self.submap_routes
+
+        # Convert map_index to string (keys in JSON are strings)
+        map_index_str = str(map_index)
+        portal_index_str = str(self.sub_portal_count)
 
         config = None
         if (
             level_id in routes
-            and map_index in routes[level_id]
-            and self.sub_portal_count in routes[level_id][map_index]
+            and map_index_str in routes[level_id]
+            and portal_index_str in routes[level_id][map_index_str]
         ):
-            config = routes[level_id][map_index][self.sub_portal_count]
+            config = routes[level_id][map_index_str][portal_index_str]
 
         if config:
+            # Convert grid coordinates to pixels if spawn_pos is in grid format
+            spawn_pos = config["spawn_pos"]
+            if isinstance(spawn_pos, (list, tuple)) and len(spawn_pos) == 2:
+                spawn_pixels = (spawn_pos[0] * TILE_SIZE, spawn_pos[1] * TILE_SIZE)
+            else:
+                spawn_pixels = spawn_pos
+            
             portal = SubMapPortal(
                 x, y,
                 config["target_map"],
-                config["spawn_pos"],
+                spawn_pixels,
                 game.assets["tp3"],
             )
             self.sub_portal_count += 1

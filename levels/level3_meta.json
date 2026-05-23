@@ -1,0 +1,22 @@
+{
+  "tps": [1, 0, 5, 4, null, null],
+  "fow": false,
+  "submap_routes": {
+    "0": {
+      "0": {
+        "target_map": 1,
+        "spawn_pos": [1, 1]
+      }
+    },
+    "1": {
+      "0": {
+        "target_map": 2,
+        "spawn_pos": [1, 1]
+      },
+      "1": {
+        "target_map": 0,
+        "spawn_pos": [1, 1]
+      }
+    }
+  }
+}

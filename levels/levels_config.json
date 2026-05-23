@@ -1,0 +1,26 @@
+{
+  "1": {
+    "files": ["level1.txt"],
+    "meta": "level1_meta.json"
+  },
+  "2": {
+    "files": ["level2.txt"],
+    "meta": "level2_meta.json"
+  },
+  "3": {
+    "files": [],
+    "meta": "level3_meta.json"
+  },
+  "4": {
+    "files": ["level4.txt", "level4_2.txt", "level4_3.txt", "level4_4.txt"],
+    "meta": "level4_meta.json"
+  },
+  "5": {
+    "files": ["level5.txt"],
+    "meta": "level5_meta.json"
+  },
+  "42": {
+    "files": ["level42.txt"],
+    "meta": "level42_meta.json"
+  }
+}

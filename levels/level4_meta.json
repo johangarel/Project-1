@@ -1,0 +1,58 @@
+{
+  "tps": [1, null, 3, null, 5, null],
+  "fow": true,
+  "submap_routes": {
+    "0": {
+      "0": {
+        "target_map": 1,
+        "spawn_pos": [12, 12]
+      },
+      "1": {
+        "target_map": 2,
+        "spawn_pos": [15, 7]
+      }
+    },
+    "1": {
+      "0": {
+        "target_map": 1,
+        "spawn_pos": [12, 12]
+      },
+      "1": {
+        "target_map": 3,
+        "spawn_pos": [3, 17]
+      },
+      "2": {
+        "target_map": 3,
+        "spawn_pos": [3, 13]
+      },
+      "3": {
+        "target_map": 2,
+        "spawn_pos": [15, 7]
+      },
+      "4": {
+        "target_map": 0,
+        "spawn_pos": [1, 11]
+      }
+    },
+    "2": {
+      "0": {
+        "target_map": 3,
+        "spawn_pos": [25, 13]
+      },
+      "1": {
+        "target_map": 0,
+        "spawn_pos": [1, 11]
+      },
+      "2": {
+        "target_map": 1,
+        "spawn_pos": [20, 18]
+      }
+    },
+    "3": {
+      "0": {
+        "target_map": 0,
+        "spawn_pos": [1, 11]
+      }
+    }
+  }
+}

@@ -2,6 +2,7 @@ import pygame
 import random
 import os
 import sys
+import json
 from .entities import Wall
 
 
@@ -22,7 +23,39 @@ def load_map(filename) -> list :
             level_map.append(line.rstrip('\n'))
     return level_map
 
-def optimise_walls(walls) -> list :
+def load_level_meta(filename) -> dict:
+    path = get_path("levels", filename)
+    if os.path.exists(path):
+        with open(path, "r") as f:
+            return json.load(f)
+    return {"enemies": []}
+
+def load_levels_config() -> dict:
+    """Load the central levels configuration file and merge with meta files."""
+    path = get_path("levels", "levels_config.json")
+    if not os.path.exists(path):
+        return {}
+    
+    with open(path, "r") as f:
+        levels_config = json.load(f)
+    
+    # Merge each level with its meta file
+    result = {}
+    for level_id, config in levels_config.items():
+        meta_filename = config.get("meta", f"level{level_id}_meta.json")
+        meta_data = load_level_meta(meta_filename)
+        
+        # Combine config and meta
+        result[int(level_id)] = {
+            "file": config.get("files", []),
+            "tps": meta_data.get("tps", []),
+            "fow": meta_data.get("fow", False),
+            "loaded": False
+        }
+    
+    return result
+
+def optimise_walls(walls: list) -> list :
     if not walls:
         return []
 
@@ -57,7 +90,7 @@ def optimise_walls(walls) -> list :
 
     return [Wall(r.x, r.y, r.width, r.height) for r in v_fused]
 
-def invert_color(rvb):
+def invert_color(rvb: tuple) -> tuple:
     r, v, b = rvb
     return (255 - r, 255 - v, 255 - b)
 
@@ -67,7 +100,7 @@ def tint_image(surface, color):
     tinted.fill(color, special_flags=pygame.BLEND_RGBA_MULT)
     return tinted
 
-def generate_custom_maze(width, height, entry_info, exit_info) -> list:
+def generate_custom_maze(width: int, height: int, entry_info: tuple, exit_info: tuple) -> list:
     """
     entry_info/exit_info : tuple (char, x, y)
     """

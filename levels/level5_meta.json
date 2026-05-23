@@ -1,0 +1,13 @@
+{
+  "tps": [],
+  "fow": false,
+  "enemies": [
+    {
+      "patrol": [[3, 2], [9, 2]]
+    },
+    {
+      "patrol": [[5, 5], [5, 10], [10, 10]]
+    }
+  ],
+  "submap_routes": {}
+}

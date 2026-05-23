@@ -8,7 +8,7 @@ from .settings import (
     WIDTH, HEIGHT, NB_LEVELS, TILE_SIZE, FPS,
     PLAYER_SPEED, PLAYER_WIDTH, PLAYER_DEFAULT_POS,
     FADE_SPEED, LEVEL_NAMES, LEVEL_COLORS, LEVEL_REWARD,
-    LEVEL_CONFIGS, TORCH_EFFECT, TORCH_TIME,
+    TORCH_EFFECT, TORCH_TIME,
     GAME_NAME, GAME_VERSION, START_TEXT, PLAY_TEXT, RECORD_TEXT,
     VICTORY_TEXT, LOADING_TEXT, TUTORIAL_FR_TEXT, TUTORIAL_EN_TEXT,
     KEY_COLORS, DEFAULT_KEY_COLOR, SETTINGS_TITLE, FPS_PRESETS,
@@ -47,7 +47,7 @@ class Game:
         self.center_x = self.screen.get_rect().centerx
         self.center_y = self.screen.get_rect().centery
 
-        # --- Loading screen
+        # --- Loading screen ---
         self.loading_text = TextUI(self.center_x, self.center_y, pygame.font.Font(None,144), LOADING_TEXT, (255, 255, 255))
         self.screen.blit(self.loading_text.txt, self.loading_text.pos)
         pygame.display.flip()
@@ -60,8 +60,7 @@ class Game:
         self.progress  = ProgressManager(NB_LEVELS)
         self.audio     = AudioManager(self.assets, {"music": self.progress.music_on, "music_vol": self.progress.music_vol, "sfx_vol": self.progress.sfx_vol})
         self.levels    = LevelManager(
-            player=Player(PLAYER_DEFAULT_POS, PLAYER_SPEED, PLAYER_WIDTH),
-            level_configs={k: dict(v) for k, v in LEVEL_CONFIGS.items()},
+            player=Player(PLAYER_DEFAULT_POS, PLAYER_SPEED, PLAYER_WIDTH, self.assets["player"])
         )
         self.player: Player = self.levels._player   # convenient shortcut
 
@@ -69,6 +68,7 @@ class Game:
         self.state      = GameState.MAIN_MENU
         self.maze       = 0      # active level (1-based, 0 = menu)
         self.level_menu = 0
+        self.current_map_index = 0  # indice de la sous-carte active
         self.active     = True
         self.binding_action = None
 
@@ -147,7 +147,8 @@ class Game:
     def _handle_click(self, mx, my):
         if self.state == GameState.LEVEL_MENU:
             btn = self.button_levels[self.level_menu - 1]
-            if btn.is_pressed(mx, my):
+            # Only allow starting level if it has a valid configuration
+            if btn.is_pressed(mx, my) and not self._is_level_empty(self.level_menu):
                 self._start_level(self.level_menu)
 
             if self.button_left_arrow.is_pressed(mx, my):
@@ -316,6 +317,7 @@ class Game:
                 self.walk_timer -= self.dt
 
         self._process_objects()
+        self._process_enemies()
 
     def _process_objects(self):
         portal_contact = False
@@ -372,6 +374,7 @@ class Game:
 
             # Sub-map
             elif isinstance(obj, SubMapPortal) and obj.is_touched(self.player):
+                self.current_map_index = obj.target_map_index
                 layout = self.levels.load_sub_map(self.maze, obj.target_map_index, self, False)
                 self.player.teleport(
                     obj.spawn_pos[0] + self.player.width / 2,
@@ -384,6 +387,15 @@ class Game:
 
         if not portal_contact:
             self.player.can_teleport = True
+    
+    def _process_enemies(self):
+        current_map = self.current_map_index  # index sub-map actif
+        for enemy in self.levels.enemies(self.maze):
+            if enemy.map_index != current_map:
+                continue
+            enemy.update(self.player, self.levels.walls(self.maze), self, self.dt)
+            if enemy.is_touching(self.player):
+                self._respawn()
 
     # ==================================================================
     # Rendering
@@ -420,6 +432,7 @@ class Game:
         objs  = self.levels.special_objs(self.maze)
         walls = self.levels.walls(self.maze)
 
+        # Special objects
         for obj in objs:
             if isinstance(obj, Portal):
                 img = obj.img if obj.dest_id is not None else obj.img2
@@ -439,8 +452,15 @@ class Game:
             elif isinstance(obj, SubMapPortal):
                 self.screen.blit(obj.img, (obj.x, obj.y))
 
-        pygame.draw.rect(self.screen, (255, 0, 0),
-                         (self.player.x, self.player.y, self.player.width, self.player.width))
+        # Player
+        player_img = self.assets[f"player_{self.player.direction}"]
+        self.screen.blit(player_img,(self.player.x,self.player.y))
+
+        # Enemy
+        for enemy in self.levels.enemies(self.maze):
+            if enemy.map_index == self.current_map_index:
+                img = self.assets[f"enemy_{enemy.direction}"]
+                self.screen.blit(img, (enemy.x, enemy.y))
 
         level_color = self.level_colors.get(self.maze, (255, 255, 255))
         for wall in walls:
@@ -461,38 +481,61 @@ class Game:
             font_color = invert_color(font_color)
         inv_color = invert_color(font_color)
         level_color = self.level_colors.get(self.level_menu, self.second_font_color)
+        
+        # Check if level is empty
+        is_empty = self._is_level_empty(self.level_menu)
+        alpha = 64 if is_empty else 255  # 25% opacity for empty levels
 
         level_btn = self.button_levels[self.level_menu - 1]
-        pygame.draw.rect(self.screen, level_color,
-                         (level_btn.x, level_btn.y, level_btn.width, level_btn.height))
-        pygame.draw.rect(self.screen, font_color,
-                         (level_btn.x + 20, level_btn.y + 20,
-                          level_btn.width - 40, level_btn.height - 40))
+        
+        # Draw button rectangles with alpha if empty level
+        if is_empty:
+            # Create temporary surface for button rectangles
+            button_surface = pygame.Surface((int(level_btn.width), int(level_btn.height)), pygame.SRCALPHA)
+            pygame.draw.rect(button_surface, (*level_color, alpha),
+                           (0, 0, level_btn.width, level_btn.height))
+            pygame.draw.rect(button_surface, (*font_color, alpha),
+                           (20, 20, level_btn.width - 40, level_btn.height - 40))
+            self.screen.blit(button_surface, (level_btn.x, level_btn.y))
+        else:
+            pygame.draw.rect(self.screen, level_color,
+                           (level_btn.x, level_btn.y, level_btn.width, level_btn.height))
+            pygame.draw.rect(self.screen, font_color,
+                           (level_btn.x + 20, level_btn.y + 20,
+                            level_btn.width - 40, level_btn.height - 40))
 
         t = self.level_texts[self.level_menu - 1]
-        self.screen.blit(t.txt, t.pos)
+        t_reduced = self._reduce_surface_alpha(t.txt, alpha) if is_empty else t.txt
+        self.screen.blit(t_reduced, t.pos)
 
         play_t = TextUI(
             self.center_x, self.center_y, self.assets["font_main"], PLAY_TEXT, level_color
             )
-        self.screen.blit(play_t.txt, play_t.pos)
+        play_t_reduced = self._reduce_surface_alpha(play_t.txt, alpha) if is_empty else play_t.txt
+        self.screen.blit(play_t_reduced, play_t.pos)
 
         stars = self.level_stars.get(self.level_menu, 0)
         star_txt = TextUI(
             self.center_x + 20, self.center_y + 200, self.assets["font_medium"], f": {stars}", inv_color
             )
         w, _ = star_txt.txt.get_size()
-        self.screen.blit(self.assets["star"], (self.center_x - 75, self.center_y + 175))
-        self.screen.blit(star_txt.txt, (star_txt.pos.left + w / 2 - 25, star_txt.pos.top))
+        
+        star_reduced = self._reduce_surface_alpha(self.assets["star"], alpha) if is_empty else self.assets["star"]
+        self.screen.blit(star_reduced, (self.center_x - 75, self.center_y + 175))
+        
+        star_txt_reduced = self._reduce_surface_alpha(star_txt.txt, alpha) if is_empty else star_txt.txt
+        self.screen.blit(star_txt_reduced, (star_txt.pos.left + w / 2 - 25, star_txt.pos.top))
 
         if self.progress.is_completed(self.level_menu):
-            self.screen.blit(self.assets["completed"], (self.center_x - 75, self.center_y + 175))
+            completed_reduced = self._reduce_surface_alpha(self.assets["completed"], alpha) if is_empty else self.assets["completed"]
+            self.screen.blit(completed_reduced, (self.center_x - 75, self.center_y + 175))
 
         rec_txt = TextUI(
             self.center_x, self.center_y + 275, self.assets["font_medium"], 
             f"Record : {self.progress.best_time_display(self.level_menu)}", inv_color
             )
-        self.screen.blit(rec_txt.txt, rec_txt.pos)
+        rec_txt_reduced = self._reduce_surface_alpha(rec_txt.txt, alpha) if is_empty else rec_txt.txt
+        self.screen.blit(rec_txt_reduced, rec_txt.pos)
 
         if self.level_menu in self.level_names:
             li_txt = TextUI(
@@ -500,11 +543,21 @@ class Game:
                 f"Level {self.level_menu}",
                 inv_color
             )
-            self.screen.blit(li_txt.txt, li_txt.pos)
+            li_txt_reduced = self._reduce_surface_alpha(li_txt.txt, alpha) if is_empty else li_txt.txt
+            self.screen.blit(li_txt_reduced, li_txt.pos)
 
+        # Render arrows (always full opacity)
         for btn in (self.button_left_arrow, self.button_right_arrow,
                     self.button_left_arrow2, self.button_right_arrow2):
             self.screen.blit(btn.img, (btn.x, btn.y))
+        
+        # Render "Coming soon..." for empty levels
+        if is_empty:
+            coming_soon_txt = TextUI(
+                self.center_x, self.center_y, self.assets["font_medium"], 
+                "Coming soon...", inv_color
+            )
+            self.screen.blit(coming_soon_txt.txt, coming_soon_txt.pos)
 
     def _render_tutorial(self):
         texts = (self.tutorial_fr if self.state == GameState.FRENCH_TUTORIAL
@@ -657,6 +710,9 @@ class Game:
         self.levels.reset_vision()
         if self.audio.music_play :
             self.audio.play_sfx("sfx_death")
+        for e in self.levels.enemies(self.maze):
+            e.reset()
+        self.current_map_index = 0
         layout = self.levels.load_sub_map(self.maze, 0, self, False)
         self.player.respawn()
         self._resize_window(layout)
@@ -691,6 +747,7 @@ class Game:
         self.state      = GameState.MAZE
         self.level_menu = 0
         self.maze       = level_id
+        self.current_map_index = 0
         self.display_record_txt = False
 
         if self.audio.music_play :
@@ -718,6 +775,18 @@ class Game:
         os.environ["SDL_VIDEO_WINDOW_POS"] = "center"
         self.screen = pygame.display.set_mode((self.width, self.height))
         self.clock.tick()
+
+    def _is_level_empty(self, level_id: int) -> bool:
+        """Check if a level has a valid configuration."""
+        cfg = self.levels.level_configs.get(level_id)
+        return cfg is None
+
+    def _reduce_surface_alpha(self, surface: pygame.Surface, alpha: int) -> pygame.Surface:
+        """Create a copy of the surface with reduced alpha (0-255)."""
+        # Convert to alpha format and apply alpha
+        new_surface = surface.convert_alpha()
+        new_surface.set_alpha(alpha)
+        return new_surface
 
     # ==================================================================
     # Level menu navigation

@@ -1,6 +1,4 @@
 import pygame
-import os
-import sys
 from .utils import get_path
 
 class AssetsManager:
@@ -50,15 +48,34 @@ class AssetsManager:
             "star": "STAR.png",
             "completed": "YES.png",
             "torch": "Light.png",
-            "settings":"settings.png"
+            "settings":"settings.png",
+            "player":"player.png",
+            "enemy":"enemy.png",
+            "shadow":'shadow.png'
         }
         
         for key, filename in images.items():
             try:
                 path = get_path("assets", "images", filename)
                 self._assets[key] = pygame.image.load(path)
+                if key == "player":
+                    # Player additional assets
+                    base = self._assets[key]
+                    self._assets["player_right"] = base
+                    self._assets["player_left"]  = pygame.transform.flip(base, True, False)
+                    self._assets["player_up"]    = pygame.transform.rotate(base, 90)
+                    self._assets["player_down"]  = pygame.transform.rotate(base, -90)
+                elif key == "enemy":
+                    # Enemy additional assets
+                    base = self._assets[key]
+                    self._assets["enemy_right"] = base
+                    self._assets["enemy_left"]  = pygame.transform.flip(base, True, False)
+                    self._assets["enemy_up"]    = pygame.transform.rotate(base, 90)
+                    self._assets["enemy_down"]  = pygame.transform.rotate(base, -90)
             except pygame.error as e:
                 print(f"Warning: Could not load image '{key}' from {filename}: {e}")
+        
+
 
     def _load_sounds(self):
         """
@@ -108,6 +125,10 @@ class AssetsManager:
         self._assets["font_main"] = pygame.font.Font(None, 144)
         self._assets["font_medium"] = pygame.font.Font(None, 64)
         self._assets["font_small"] = pygame.font.Font(None, 40)
+    
+    def _rotated(surface, angle, size):
+        rotated = pygame.transform.rotate(surface, angle)
+        return pygame.transform.smoothscale(rotated, (size, size))
 
 def load_assets():
     return AssetsManager()

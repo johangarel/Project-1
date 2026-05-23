@@ -12,9 +12,13 @@ FPS_PRESETS = [60,120,240]
 DEFAULT_MUSIC_VOL = 0.5
 DEFAULT_SFX_VOL = 0.5
 
-PLAYER_SPEED = 500
+PLAYER_SPEED = 400
 PLAYER_WIDTH = 25
 PLAYER_DEFAULT_POS = (WIDTH // 2 - PLAYER_WIDTH // 2, HEIGHT - 50)
+
+ENEMY_SPEED_PATROL = 100
+ENEMY_SPEED_CHASE = 200
+ENEMY_DETECTION_RADIUS = 200
 
 TP_WIDTH = 50
 WINPAD_WIDTH = 50
@@ -36,6 +40,7 @@ LEVEL_NAMES = {
     2:"Trapped", 
     3:"Perfect Maze", 
     4:"Darker World",
+    5:"The Heist",
     42:"The Answer",
     67:"heheheha",
     69:"Nice"
@@ -46,7 +51,7 @@ LEVEL_COLORS = {
     2:(255,125,0),
     3:(0,255,0),
     4:(105, 230, 90), 
-    5:(105, 155, 40), 
+    5:(40, 105, 155), 
     6:(195, 55, 145), 
     7:(50, 185, 200), 
     8:(50, 50, 250), 
@@ -65,7 +70,7 @@ LEVEL_REWARD = {
 }
 
 GAME_NAME = "MAZE 101"
-GAME_VERSION = "v0.4.6"
+GAME_VERSION = "v0.5 WIP"
 START_TEXT = "START"
 PLAY_TEXT = "PLAY"
 VICTORY_TEXT = "You win !"
@@ -101,51 +106,8 @@ KEY_COLORS = {
 
 DEFAULT_KEY_COLOR = (200, 200, 200)
 
-# Mandatory step if you want to create a new level
-LEVEL_CONFIGS = {
-    1: {"file": ["level1.txt"], "tps": [1, None, 3, None, 5, None], "fow":False},
-    2: {"file": ["level2.txt"], "tps": [None, 0, 1, 0, 3, 0], "fow":False},
-    3: {"file": [], "tps": [1, 0, 5, 4, None, None], "fow":False},
-    4: {"file": ["level4.txt","level4_2.txt","level4_3.txt","level4_4.txt"], "tps": [1,None,3,None,5,None], "fow":True},
-    42: {"file": ["level42.txt"], "tps":[], "fow":False}
-}
-
-# Optional step : create a sub map portal system
-SUBMAP_ROUTES = {
-    3: { # For level 3
-        0: { # For level3_1.txt (Index 0)
-            0:{"target_map": 1, "spawn_pos": (TILE_SIZE,TILE_SIZE)} # The 1st 'S' leads to map index 1
-            },
-        1: { # For level3_2.txt (Index 1)
-            0:{"target_map": 2, "spawn_pos": (TILE_SIZE,TILE_SIZE)}, # The 1st 'S' leads to map index 2
-            1:{"target_map": 0, "spawn_pos": (TILE_SIZE, TILE_SIZE)}
-            },  
-    },
-    4: {
-        0: {
-            1:{"target_map":2, "spawn_pos": (15*TILE_SIZE,7*TILE_SIZE)},
-            0:{"target_map":1, "spawn_pos": (12*TILE_SIZE,12*TILE_SIZE)}
-        },
-        1: {
-            0:{"target_map":1, "spawn_pos": (12*TILE_SIZE,12*TILE_SIZE)},
-            1:{"target_map":3, "spawn_pos": (3*TILE_SIZE,17*TILE_SIZE)},
-            2:{"target_map":3, "spawn_pos": (3*TILE_SIZE,13*TILE_SIZE)},
-            3:{"target_map":2, "spawn_pos": (15*TILE_SIZE,7*TILE_SIZE)},
-            4:{"target_map":0, "spawn_pos": (TILE_SIZE,11*TILE_SIZE)},
-        },
-        2: {
-            0:{"target_map":3, "spawn_pos": (25*TILE_SIZE,13*TILE_SIZE)},
-            1:{"target_map":0, "spawn_pos": (TILE_SIZE,11*TILE_SIZE)},
-            2:{"target_map":1, "spawn_pos": (20*TILE_SIZE,18*TILE_SIZE)}
-        },
-        3: {
-            0:{"target_map":0, "spawn_pos": (TILE_SIZE,11*TILE_SIZE)}
-        }
-    }
-}
-
 # Objects that walls shouldn't connect with
-BANNED_BUILDING_CHARACTERS = ["P","V","L","S"]
+BANNED_BUILDING_CHARACTERS = ["P","V","L","S","E"]
 
 KEY_BINDINGS_DEFAULT = {
     "up":     "K_z",

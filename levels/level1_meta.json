@@ -1,0 +1,6 @@
+{
+  "tps": [1, null, 3, null, 5, null],
+  "fow": false,
+  "enemies": [],
+  "submap_routes": {}
+}
