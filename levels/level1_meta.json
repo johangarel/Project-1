@@ -1,4 +1,7 @@
 {
+  "name": "Rooms",
+  "color": [255, 0, 255],
+  "reward": 1,
   "tps": [1, null, 3, null, 5, null],
   "fow": false,
   "enemies": [],

@@ -58,11 +58,50 @@
 
 
 
-* Then, go into scripts/ and open the python file settings.py, and modify the variable LEVEL\_CONFIGS. Do like previous levels added, put the number id, the level text file, a teleporter list, and if you want to activate the "fog of war" option. To make a teleporter list, add the index of the destination portal in the index of the entry portal in the list. For example, if I want tp 0 to go to tp 1, then I add 1 to index 0 in the tp list.
+* Then, open `levels/levels_config.json` and add a new entry for the level. Use existing levels as examples.
+
+Example entry:
+
+```json
+"6": {
+  "files": ["level6.txt"],
+  "meta": "level6_meta.json"
+}
+```
+
+* Create the meta file in `levels/`, for example `level6_meta.json`.
+  Important fields:
+  * `name`: display name for the level
+  * `color`: RGB list like `[255, 128, 0]`
+  * `reward`: number of stars for completion
+  * `tps`: teleporter mapping, using `null` for unused portals
+  * `fow`: `true` or `false`
+  * `submap_routes`: optional routes between maps when using multiple files
+
+Example meta file:
+
+```json
+{
+  "name": "Hidden Vault",
+  "color": [255, 128, 0],
+  "reward": 2,
+  "tps": [1, 0, 5, 4, null, null],
+  "fow": false,
+  "submap_routes": {
+    "0": {
+      "0": { "target_map": 1, "spawn_pos": [1, 1] }
+    },
+    "1": {
+      "0": { "target_map": 0, "spawn_pos": [1, 1] }
+    }
+  }
+}
+```
+
+* If the level uses multiple maps, add several filenames to `files` and configure `submap_routes` in the meta file.
 
 
 
-* You can optionally create multiple maps for a level; to do this, fill up the SUBMAP\_ROUTES variable using the same method as for previous levels.
 
 
 
@@ -124,11 +163,50 @@
 
 
 
-* Ensuite, allez dans scripts/ et ouvrez le fichier python settings.py, puis modifiez la variable LEVEL\_CONFIGS. Procédez comme pour les niveaux précédents : indiquez le numéro du niveau, le fichier texte du niveau , une liste de téléporteurs et si vous voulez activer l'option "fog of war". Pour créer une liste de téléporteurs, ajoutez l'index du portail de destination à l'index du portail d'entrée dans la liste. Par exemple, si vous souhaitez que le téléporteur 0 mène au téléporteur 1, mettez 1 à l'index 0 dans la liste des téléporteurs.
+* Ensuite, ouvrez `levels/levels_config.json` et ajoutez une entrée pour le nouveau niveau. Inspirez-vous des niveaux existants.
+
+Exemple d'entrée :
+
+```json
+"6": {
+  "files": ["level6.txt"],
+  "meta": "level6_meta.json"
+}
+```
+
+* Créez ensuite le fichier méta dans `levels/`, par exemple `level6_meta.json`.
+  Champs importants :
+  * `name` : nom affiché du niveau
+  * `color` : couleur RGB sous forme de liste `[255, 128, 0]`
+  * `reward` : nombre d'étoiles obtenues
+  * `tps` : configuration des téléporteurs, `null` pour les portails non utilisés
+  * `fow` : `true` ou `false`
+  * `submap_routes` : optionnel, pour relier plusieurs cartes
+
+Exemple de fichier méta :
+
+```json
+{
+  "name": "Coffre caché",
+  "color": [255, 128, 0],
+  "reward": 2,
+  "tps": [1, 0, 5, 4, null, null],
+  "fow": false,
+  "submap_routes": {
+    "0": {
+      "0": { "target_map": 1, "spawn_pos": [1, 1] }
+    },
+    "1": {
+      "0": { "target_map": 0, "spawn_pos": [1, 1] }
+    }
+  }
+}
+```
+
+* Si le niveau utilise plusieurs fichiers de carte, ajoutez plusieurs noms dans `files` et configurez `submap_routes` dans le fichier méta.
 
 
 
-* Vous pouvez éventuellement créer plusieurs cartes pour un niveau, pour faire cela, remplissez la variable SUBMAP\_ROUTES avec le même fonctionnement que les niveaux précédents pour les lier entre eux
 
 &#x20;
 

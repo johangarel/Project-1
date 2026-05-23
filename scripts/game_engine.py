@@ -7,7 +7,7 @@ from .utils import invert_color
 from .settings import (
     WIDTH, HEIGHT, NB_LEVELS, TILE_SIZE, FPS,
     PLAYER_SPEED, PLAYER_WIDTH, PLAYER_DEFAULT_POS,
-    FADE_SPEED, LEVEL_NAMES, LEVEL_COLORS, LEVEL_REWARD,
+    FADE_SPEED,
     TORCH_EFFECT, TORCH_TIME,
     GAME_NAME, GAME_VERSION, START_TEXT, PLAY_TEXT, RECORD_TEXT,
     VICTORY_TEXT, LOADING_TEXT, TUTORIAL_FR_TEXT, TUTORIAL_EN_TEXT,
@@ -84,9 +84,18 @@ class Game:
         self.font_color        = (0, 0, 0)
         self.second_font_color = (255, 255, 255)
         self.fade_speed        = FADE_SPEED
-        self.level_colors      = LEVEL_COLORS
-        self.level_names       = LEVEL_NAMES
-        self.level_stars       = LEVEL_REWARD
+        self.level_colors      = {
+            level_id: cfg.get("color", (255, 255, 255))
+            for level_id, cfg in self.levels.level_configs.items()
+        }
+        self.level_names       = {
+            level_id: cfg.get("name", f"Level {level_id}")
+            for level_id, cfg in self.levels.level_configs.items()
+        }
+        self.level_stars       = {
+            level_id: cfg.get("reward", 0)
+            for level_id, cfg in self.levels.level_configs.items()
+        }
         self.nb_levels         = NB_LEVELS
 
         # --- Text & buttons ---
@@ -490,6 +499,8 @@ class Game:
         
         # Draw button rectangles with alpha if empty level
         if is_empty:
+            if self.level_menu == 67:
+                level_color = (0,0,0)
             # Create temporary surface for button rectangles
             button_surface = pygame.Surface((int(level_btn.width), int(level_btn.height)), pygame.SRCALPHA)
             pygame.draw.rect(button_surface, (*level_color, alpha),
@@ -537,7 +548,7 @@ class Game:
         rec_txt_reduced = self._reduce_surface_alpha(rec_txt.txt, alpha) if is_empty else rec_txt.txt
         self.screen.blit(rec_txt_reduced, rec_txt.pos)
 
-        if self.level_menu in self.level_names:
+        if self.level_menu in self.level_names or self.level_menu in [67,69]:
             li_txt = TextUI(
                 self.center_x, 100, self.assets["font_small"],
                 f"Level {self.level_menu}",
@@ -839,9 +850,11 @@ class Game:
         self.level_texts = [
             TextUI(cx, cy - 200, a["font_main"], f"Level {n + 1}", (255, 255, 255)) for n in range(NB_LEVELS)
         ]
-        for lvl_id, name in LEVEL_NAMES.items():
-            color = self.font_color if lvl_id == 67 else self.second_font_color
+        color =  self.second_font_color
+        for lvl_id, name in self.level_names.items():
             self.level_texts[lvl_id - 1] = TextUI(cx, cy - 200, a["font_main"], name, color)
+        self.level_texts[66] = TextUI(cx, cy - 200, a["font_main"], "heheheha", invert_color(color))
+        self.level_texts[68] = TextUI(cx, cy - 200, a["font_main"], "Nice", color)
 
         # Tutorials
         self.tutorial_fr = [

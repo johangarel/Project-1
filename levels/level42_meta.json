@@ -1,4 +1,7 @@
 {
+  "name": "The Answer",
+  "color": [0, 0, 0],
+  "reward": -42,
   "tps": [],
   "fow": false,
   "enemies": [],

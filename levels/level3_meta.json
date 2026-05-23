@@ -1,4 +1,7 @@
 {
+  "name": "Perfect Maze",
+  "color": [0, 255, 0],
+  "reward": 2,
   "tps": [1, 0, 5, 4, null, null],
   "fow": false,
   "submap_routes": {

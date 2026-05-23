@@ -35,40 +35,6 @@ FADE_SPEED = {
     "fast":50
 }
 
-LEVEL_NAMES = {
-    1:"Rooms", 
-    2:"Trapped", 
-    3:"Perfect Maze", 
-    4:"Darker World",
-    5:"The Heist",
-    42:"The Answer",
-    67:"heheheha",
-    69:"Nice"
-    }
-
-LEVEL_COLORS = {
-    1:(255,0,255),
-    2:(255,125,0),
-    3:(0,255,0),
-    4:(105, 230, 90), 
-    5:(40, 105, 155), 
-    6:(195, 55, 145), 
-    7:(50, 185, 200), 
-    8:(50, 50, 250), 
-    9:(195, 50, 195), 
-    10:(225, 150, 55),
-    42:(0,0,0),
-    67:(0,0,0)
-}
-
-LEVEL_REWARD = {
-    1:1,
-    2:4,
-    3:2,
-    4:8,
-    42:-42
-}
-
 GAME_NAME = "MAZE 101"
 GAME_VERSION = "v0.5 WIP"
 START_TEXT = "START"

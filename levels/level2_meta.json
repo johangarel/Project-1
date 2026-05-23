@@ -1,4 +1,7 @@
 {
+  "name": "Trapped",
+  "color": [255, 125, 0],
+  "reward": 4,
   "tps": [null, 0, 1, 0, 3, 0],
   "fow": false,
   "enemies": [],

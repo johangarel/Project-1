@@ -1,4 +1,7 @@
 {
+  "name": "Darker World",
+  "color": [105, 230, 90],
+  "reward": 8,
   "tps": [1, null, 3, null, 5, null],
   "fow": true,
   "submap_routes": {

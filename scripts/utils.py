@@ -46,10 +46,17 @@ def load_levels_config() -> dict:
         meta_data = load_level_meta(meta_filename)
         
         # Combine config and meta
+        color = meta_data.get("color", [255, 255, 255])
+        if isinstance(color, list):
+            color = tuple(color)
+        
         result[int(level_id)] = {
             "file": config.get("files", []),
             "tps": meta_data.get("tps", []),
             "fow": meta_data.get("fow", False),
+            "name": meta_data.get("name"),
+            "color": color,
+            "reward": meta_data.get("reward", 0),
             "loaded": False
         }
     
