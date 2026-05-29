@@ -140,84 +140,204 @@ class Player:
 # ==================================================================
 
 class Enemy:
-    def __init__(self, x, y, patrol_path: list, speed_patrol, speed_chase, detection_radius, img, map_index):
-        self.x, self.y = x, y
+
+    def __init__(self, x, y, patrol_path: list, speed_patrol: int, speed_chase: int, detection_radius: int, img, map_index: int):
+        self.x, self.y = float(x), float(y)
+        self.spawn_pos = (float(x), float(y))
         self.width = PLAYER_WIDTH
-        self.rect = pygame.Rect(x, y, self.width, self.width)
+        self.rect = pygame.Rect(int(self.x), int(self.y), self.width, self.width)
 
-        self.patrol_path = patrol_path  # pos tuple list (Ex : [(200,200),(455,201)])
-        self.patrol_index = 0           # current waypoint
-        self.speed_patrol = speed_patrol
-        self.speed_chase = speed_chase
-        self.detection_radius = detection_radius
-        self.map_index = map_index      # sub-map
+        # Patrol
+        self.waypoints   = patrol_path   # list of (px_x, px_y)
+        self.patrol_index  = 0
+        self._was_chasing = False
+        self._patrol_path = []         # list of pixel (x, y) waypoints
+        self._patrol_path_timer = 0.0  # countdown to next recalculation
+        self.PATROL_PATH_REFRESH = 0.6 # seconds between A* recalculations
+
+        # A* chase path
+        self._chase_path  = []   # list of pixel (x, y) waypoints
+        self._path_timer  = 0.0  # countdown to next recalculation
+        self.PATH_REFRESH = 0.6  # seconds between A* recalculations
+        self._path_computed_this_cycle = False
+
+        # Stats
+        self.speed_patrol      = speed_patrol
+        self.speed_chase       = speed_chase
+        self.detection_radius  = detection_radius
+
+        # Rendering
+        self.img       = img
         self.direction = "right"
-        self.img = img
+        self.map_index = map_index
 
-        self.state = "patrol"           # "patrol" | "chase"
-    
-    def _distance_to(self, player: Player):
-        dx = (self.x + self.width/2) - (player.x + player.width/2)
-        dy = (self.y + self.width/2) - (player.y + player.width/2)
-        return (dx**2 + dy**2) ** 0.5
+        self.state = "patrol"  # "patrol" | "chase"
+ 
+    def update(self, player, walls: list, dt: float, layout: list, tile_size: int) -> None:
+        dist = self._distance_to(player)
 
-    def _move_towards(self, tx, ty, speed, walls, game, dt):
-        """Move the enemy towards (tx,ty) while respecting the walls."""
+        if self.state == "patrol":
+            if dist <= self.detection_radius:
+                self.state = "chase"
+        else:  # chase
+            if dist > self.detection_radius * 1.2:
+                self.state = "patrol"
+
+        if self.state == "chase":
+            self._update_chase(player, walls, dt, layout, tile_size)
+            self._was_chasing = True
+        else:
+            self._chase_path = []
+            self._path_timer = 0.0
+            if not self.waypoints:
+                self._was_chasing = False
+                return
+
+            if self._was_chasing:
+                self._patrol_path = []
+                self._patrol_path_timer = 0.0
+            self._was_chasing = False
+
+            self._update_patrol(walls, dt, layout, tile_size)
+
+    def _update_chase(self, player, walls: list, dt: float, layout: list, tile_size: int) -> None:
+        """Follow the player using A* pathfinding."""
+        from .utils import astar
+
+        dist = self._distance_to(player)
+        # Short distance chase
+        if dist < 34.5:
+            self._chase_path = []
+            self._path_timer = self.PATH_REFRESH # reset timer
+            self._path_computed_this_cycle = False
+            self._move_towards(player.x, player.y, self.speed_chase, walls, dt)
+            return
+
+        self._path_timer -= dt
+        if self._path_timer <= 0:
+            start_col = int(self.x // tile_size)
+            start_row = int(self.y // tile_size)
+            start_snapped = (
+                start_col * tile_size + tile_size // 2,
+                start_row * tile_size + tile_size // 2,
+            )
+            self._chase_path = astar(
+                layout,
+                start_snapped,
+                (player.x, player.y),
+                tile_size,
+            )
+            self._path_timer = self.PATH_REFRESH
+
+        if not self._chase_path and not self._path_computed_this_cycle:
+            start_col = int(self.x // tile_size)
+            start_row = int(self.y // tile_size)
+            start_snapped = (
+                start_col * tile_size + tile_size // 2,
+                start_row * tile_size + tile_size // 2,
+            )
+            self._chase_path = astar(
+                layout,
+                start_snapped,
+                (player.x, player.y),
+                tile_size,
+            )
+            self._path_computed_this_cycle = True
+
+        if self._chase_path:
+            cx = self._chase_path[0][0] + tile_size // 2 - self.width // 2
+            cy = self._chase_path[0][1] + tile_size // 2 - self.width // 2
+            self._move_towards(cx, cy, self.speed_chase, walls, dt)
+            if abs(self.x - cx) < 4 and abs(self.y - cy) < 4:
+                self._chase_path.pop(0)
+        else:
+            self._update_patrol(walls, dt, layout, tile_size)
+
+    def _update_patrol(self, walls: list, dt: float, layout: list, tile_size: int) -> None:
+        from .utils import astar
+
+        tx, ty = self.waypoints[self.patrol_index]
+
+        # Waypoints
+        if abs(self.x - tx) < 4 and abs(self.y - ty) < 4:
+            self.patrol_index = (self.patrol_index + 1) % len(self.waypoints)
+            self._patrol_path = []
+            self._patrol_path_timer = 0.0
+            tx, ty = self.waypoints[self.patrol_index]
+
+        # A*
+        self._patrol_path_timer -= dt
+        if self._patrol_path_timer <= 0 or not self._patrol_path:
+            self._patrol_path = astar(layout, (self.x, self.y), (tx, ty), tile_size)
+            self._patrol_path_timer = self.PATROL_PATH_REFRESH
+
+        if self._patrol_path:
+            cx = self._patrol_path[0][0] + tile_size // 2 - self.width // 2
+            cy = self._patrol_path[0][1] + tile_size // 2 - self.width // 2
+            self._move_towards(cx, cy, self.speed_patrol, walls, dt)
+            if abs(self.x - cx) < 4 and abs(self.y - cy) < 4:
+                self._patrol_path.pop(0)
+        else:
+            # Fallback
+            self._move_towards(tx, ty, self.speed_patrol, walls, dt)
+
+    def is_touching(self, player) -> bool:
+        return self.rect.colliderect(player.rect)
+
+    def reset(self) -> None:
+        self.x, self.y    = self.spawn_pos
+        self.patrol_index = 0
+        self.state        = "patrol"
+        self._chase_path  = []
+        self._path_timer  = 0.0
+        self.rect         = pygame.Rect(int(self.x), int(self.y), self.width, self.width)
+        self._was_chasing = False
+        self._patrol_path = []
+        self._patrol_path_timer = 0.0
+
+    def _distance_to(self, player) -> float:
+        dx = (self.x + self.width / 2) - (player.x + player.width / 2)
+        dy = (self.y + self.width / 2) - (player.y + player.width / 2)
+        return (dx ** 2 + dy ** 2) ** 0.5
+
+    def _move_towards(self, tx: float, ty: float, speed: int, walls: list, dt: float) -> None:
+        """Move toward (tx, ty) at given speed, sliding along walls."""
         dx = tx - self.x
         dy = ty - self.y
-        dist = (dx**2 + dy**2) ** 0.5
-        if dist == 0:
+        dist = (dx ** 2 + dy ** 2) ** 0.5
+        if dist < 1:
             return
-        step = speed * dt
-        norm_dx = dx / dist * min(step, dist)
-        norm_dy = dy / dist * min(step, dist)
 
-        # Update direction
+        step      = speed * dt
+        norm_dx   = dx / dist * min(step, dist)
+        norm_dy   = dy / dist * min(step, dist)
+
+        # Update sprite direction
         if abs(norm_dx) > abs(norm_dy):
             self.direction = "right" if norm_dx > 0 else "left"
         else:
             self.direction = "down" if norm_dy > 0 else "up"
 
-        # Movement
-        future_x = pygame.Rect(self.x + norm_dx, self.y, self.width, self.width)
-        future_y = pygame.Rect(self.x, self.y + norm_dy, self.width, self.width)
+        # Move axes independently so the enemy slides along walls
+        future_x = pygame.Rect(int(self.x + norm_dx), int(self.y), self.width, self.width)
+        future_y = pygame.Rect(int(self.x), int(self.y + norm_dy), self.width, self.width)
 
         if not any(future_x.colliderect(w.rect) for w in walls):
             self.x += norm_dx
         if not any(future_y.colliderect(w.rect) for w in walls):
             self.y += norm_dy
 
-        self.rect = pygame.Rect(self.x, self.y, self.width, self.width)
+        self.rect = pygame.Rect(int(self.x), int(self.y), self.width, self.width)
 
-    def update(self, player, walls, game, dt):
-        dist = self._distance_to(player)
-
-        if dist <= self.detection_radius:
-            self.state = "chase"
-        else:
-            self.state = "patrol"
-
-        if self.state == "chase":
-            self._move_towards(player.x, player.y, self.speed_chase, walls, game, dt)
-
-        else:  # patrol
-            if not self.patrol_path:
-                return
-            target = self.patrol_path[self.patrol_index]
-            self._move_towards(target[0], target[1], self.speed_patrol, walls, game, dt)
-
-            # Move to next waypoint
-            if abs(self.x - target[0]) < 2 and abs(self.y - target[1]) < 2:
-                self.patrol_index = (self.patrol_index + 1) % len(self.patrol_path)
-
-    def is_touching(self, player):
-        return self.rect.colliderect(player.rect)
-    
-    def reset(self):
-        self.x, self.y = self.patrol_path[0] if self.patrol_path else (self.x, self.y)
-        self.patrol_index = 0
-        self.state = "patrol"
-        self.rect = pygame.Rect(self.x, self.y, self.width, self.width)
+    def _nearest_patrol_index(self) -> int:
+        best_idx = self.patrol_index
+        best_dist = float("inf")
+        for i, (px, py) in enumerate(self.waypoints):
+            d = (self.x - px) ** 2 + (self.y - py) ** 2
+            if d < best_dist:
+                best_dist = d
+                best_idx = i
+        return best_idx
 
 # ==================================================================
 # Obstacles classes

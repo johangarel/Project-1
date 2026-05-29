@@ -3,6 +3,7 @@ import random
 import os
 import sys
 import json
+import heapq
 from .entities import Wall
 
 
@@ -61,6 +62,74 @@ def load_levels_config() -> dict:
         }
     
     return result
+
+def astar(layout: list, start: tuple, end: tuple, tile_size: int) -> list:
+    """
+    A* pathfinding on the level grid.
+ 
+    start / end : pixel coords (x, y) — converted to grid (col, row) internally.
+    Returns an ordered list of pixel (x, y) waypoints to follow, or [] if no
+    path exists.
+ 
+    Walkable cells: anything that is not a wall ('W') 
+    """
+    def to_grid(px, py):
+        return (int(px // tile_size), int(py // tile_size))
+
+    def to_pixel(col, row):
+        return (col * tile_size, row * tile_size)
+
+    def is_walkable(col, row):
+        if row < 0 or row >= len(layout):
+            return False
+        if col < 0 or col >= len(layout[row]):
+            return False
+        ch = layout[row][col]
+        return not (ch == 'W' or ch.isupper())
+
+    sc, sr = to_grid(*start)
+    ec, er = to_grid(*end)
+
+    if not is_walkable(ec, er):
+        best = None
+        best_dist = float("inf")
+        for dr in range(-3, 4):
+            for dc in range(-3, 4):
+                nc, nr = ec + dc, er + dr
+                if is_walkable(nc, nr) and (nc, nr) != (sc, sr):
+                    px = nc * tile_size - end[0]
+                    py = nr * tile_size - end[1]
+                    d = px * px + py * py
+                    if d < best_dist:
+                        best_dist = d
+                        best = (nc, nr)
+        if best is None:
+            return []
+        ec, er = best
+ 
+    # heap entries: (f, g, col, row, path)
+    open_set = [(0, 0, sc, sr, [])]
+    visited  = set()
+ 
+    while open_set:
+        f, g, col, row, path = heapq.heappop(open_set)
+        if (col, row) in visited:
+            continue
+        visited.add((col, row))
+        path = path + [(col, row)]
+ 
+        if (col, row) == (ec, er):
+            # Skip the first node (already standing there), return pixel coords
+            return [to_pixel(c, r) for c, r in path[1:]]
+ 
+        for dc, dr in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
+            nc, nr = col + dc, row + dr
+            if (nc, nr) not in visited and is_walkable(nc, nr):
+                ng = g + 1
+                h  = abs(nc - ec) + abs(nr - er)
+                heapq.heappush(open_set, (ng + h, ng, nc, nr, path))
+ 
+    return []  # no path found
 
 def optimise_walls(walls: list) -> list :
     if not walls:

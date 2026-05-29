@@ -402,7 +402,8 @@ class Game:
         for enemy in self.levels.enemies(self.maze):
             if enemy.map_index != current_map:
                 continue
-            enemy.update(self.player, self.levels.walls(self.maze), self, self.dt)
+            layout = self.levels.level_map_list[self.maze-1]
+            enemy.update(self.player, self.levels.walls(self.maze), self.dt, layout, self.tile_size)
             if enemy.is_touching(self.player):
                 self._respawn()
 

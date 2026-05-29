@@ -4,6 +4,10 @@
   "reward": 1,
   "tps": [1, null, 3, null, 5, null],
   "fow": false,
-  "enemies": [],
+  "enemies": [
+    {
+      "patrol": [[2,15]]
+    }
+  ],
   "submap_routes": {}
 }
