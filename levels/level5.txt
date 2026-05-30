@@ -6,7 +6,7 @@
     WW     W           
      W   WWW     W     
          W       W     
-     W     W     W     
+     W    >W     W     
      W   WWW     W     
     WW     W  W        
            W  WWWW     
@@ -14,5 +14,5 @@
            P  W        
     W         WW       
     WW         W       
-     WW       WW       
+    +WW       WW       
                        

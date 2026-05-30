@@ -51,7 +51,9 @@ class AssetsManager:
             "settings":"settings.png",
             "player":"player.png",
             "enemy":"enemy.png",
-            "shadow":'shadow.png'
+            "shadow":"shadow.png",
+            "heal":"HEALTH.png",
+            "speed":"SPEED.png"
         }
         
         for key, filename in images.items():

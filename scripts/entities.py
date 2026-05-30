@@ -1,5 +1,7 @@
 import pygame
-from .settings import TILE_SIZE, TORCH_EFFECT, KEY_COLORS, PLAYER_WIDTH, INVICIBILITY_TIME, SHADOW_DELAY
+from .settings import (TILE_SIZE, TORCH_EFFECT, KEY_COLORS, 
+                       PLAYER_WIDTH, INVICIBILITY_TIME, SHADOW_DELAY, 
+                       HEAL_EFFECT, SPEED_EFFECT, PLAYER_HEALTH)
 
 
 # ==================================================================
@@ -20,8 +22,8 @@ class Player:
         self.can_teleport = False
         self.direction = "right"
         # Health system
-        self.health = 100
-        self.max_health = 100
+        self.health = PLAYER_HEALTH
+        self.max_health = PLAYER_HEALTH
         self.trap_invincibility_timer = 0.0
         self.enemy_invincibility_timer = 0.0
         self.INVINCIBILITY_DURATION = INVICIBILITY_TIME  # seconds
@@ -159,26 +161,22 @@ class Player:
         key.collect()
 
     def take_trap_damage(self):
-        """Apply instant damage from trap and set invincibility"""
         if self.trap_invincibility_timer <= 0:
             self.health = max(0, self.health - 50)
             self.trap_invincibility_timer = self.INVINCIBILITY_DURATION
 
     def take_enemy_damage(self):
-        """Apply instant damage from enemy and set invincibility"""
         if self.enemy_invincibility_timer <= 0:
             self.health = max(0, self.health - 25)
             self.enemy_invincibility_timer = self.INVINCIBILITY_DURATION
 
     def update_invincibility(self, dt: float):
-        """Update invincibility timers"""
         if self.trap_invincibility_timer > 0:
             self.trap_invincibility_timer -= dt
         if self.enemy_invincibility_timer > 0:
             self.enemy_invincibility_timer -= dt
 
     def is_dead(self) -> bool:
-        """Check if player is dead"""
         return self.health <= 0
 
 # ==================================================================
@@ -358,7 +356,6 @@ class Enemy:
         return (dx ** 2 + dy ** 2) ** 0.5
 
     def _move_towards(self, tx: float, ty: float, speed: int, walls: list, player, dt: float) -> None:
-        """Move toward (tx, ty) at given speed, sliding along walls and avoiding player."""
         dx = tx - self.x
         dy = ty - self.y
         dist = (dx ** 2 + dy ** 2) ** 0.5
@@ -400,13 +397,13 @@ class Enemy:
         return best_idx
 
 # ==================================================================
-# Shadow class - Follows player with 3 second delay
+# Shadow class
 # ==================================================================
 
 class Shadow:
     def __init__(self, img):
         from collections import deque
-        self.x = -100.0
+        self.x = -100.0 # Not on the screen by default
         self.y = -100.0
         self.width = PLAYER_WIDTH
         self.direction = "right"
@@ -581,6 +578,41 @@ class Light :
         self.collected = False
         self.img = img
         self.effect = TORCH_EFFECT
+        self.cooldown = 0.0
+
+    def is_touched(self,player: Player) -> bool:
+        return self.x < player.x + player.width // 2 < self.x + self.width and self.y < player.y + player.width // 2 < self.y + self.width
+
+    def collect(self):
+        self.collected = True
+    
+    def respawn(self):
+        self.collected = False
+    
+class Heal :
+    def __init__(self,x,y,img):
+        self.x, self.y = x,y
+        self.width = TILE_SIZE
+        self.collected = False
+        self.img = img
+        self.effect = HEAL_EFFECT
+
+    def is_touched(self,player: Player) -> bool:
+        return self.x < player.x + player.width // 2 < self.x + self.width and self.y < player.y + player.width // 2 < self.y + self.width
+
+    def collect(self):
+        self.collected = True
+    
+    def respawn(self):
+        self.collected = False
+
+class Speed :
+    def __init__(self,x,y,img):
+        self.x,self.y = x,y
+        self.width = TILE_SIZE
+        self.collected = False
+        self.img = img
+        self.effect = SPEED_EFFECT
         self.cooldown = 0.0
 
     def is_touched(self,player: Player) -> bool:

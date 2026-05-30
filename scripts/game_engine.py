@@ -2,7 +2,7 @@ import os
 import pygame
 from pygame.locals import *
 
-from .entities import Player, Door, Key, Trap, Winpad, Portal, ButtonUI, Light, SubMapPortal, TextUI, Shadow
+from .entities import Player, Door, Key, Trap, Winpad, Portal, ButtonUI, Light, SubMapPortal, TextUI, Shadow, Heal, Speed
 from .utils import invert_color
 from .settings import (
     WIDTH, HEIGHT, NB_LEVELS, TILE_SIZE, FPS,
@@ -13,7 +13,8 @@ from .settings import (
     VICTORY_TEXT, LOADING_TEXT, TUTORIAL_FR_TEXT, TUTORIAL_EN_TEXT,
     KEY_COLORS, DEFAULT_KEY_COLOR, SETTINGS_TITLE, FPS_PRESETS,
     KEY_BINDINGS_DEFAULT, HEIGHT_SETTINGS, SAVE_TEXT, RESET_TEXT,
-    DEFAULT_MUSIC_VOL, DEFAULT_SFX_VOL
+    DEFAULT_MUSIC_VOL, DEFAULT_SFX_VOL, HEAL_EFFECT, PLAYER_HEALTH,
+    SPEED_TIME, SPEED_EFFECT
 )
 from .assets_manager import AssetsManager
 from .audio_manager import AudioManager
@@ -386,7 +387,7 @@ class Game:
                             self.audio.play_sfx("sfx_unlock")
                         obj.open()
 
-            # Trap - detect contact with tolerance
+            # Trap
             elif isinstance(obj, Trap):
                 if obj.rect.colliderect(self.player.rect):
                     self.player.take_trap_damage()
@@ -405,6 +406,32 @@ class Game:
                         obj.cooldown = 0.0
                         self.levels.vision_radius -= TORCH_EFFECT
                         obj.respawn()
+            
+            # Heal
+            elif isinstance(obj, Heal):
+                if obj.is_touched(self.player) and self.player.health < PLAYER_HEALTH and not obj.collected:
+                    obj.collect()
+                    if self.player.health + HEAL_EFFECT <= 100:
+                        self.player.health += HEAL_EFFECT
+                    else :
+                        self.player.health = PLAYER_HEALTH
+            
+            # Speed
+            elif isinstance(obj, Speed):
+                if obj.is_touched(self.player) and obj.cooldown == 0.0:
+                    obj.collect()
+                    if self.audio.music_play :
+                        self.audio.play_sfx("sfx_light")
+                    obj.cooldown = 2*SPEED_TIME
+                    self.player.speed += SPEED_EFFECT
+                if 0.0 < obj.cooldown <= 2*SPEED_TIME:
+                    obj.cooldown -= self.dt
+                    if obj.cooldown <= 0.0:
+                        obj.cooldown = 0.0
+                        obj.respawn()
+                    elif obj.cooldown <= SPEED_TIME and self.player.speed == PLAYER_SPEED + SPEED_EFFECT :
+                        self.player.speed -= SPEED_EFFECT
+
 
             # Sub-map
             elif isinstance(obj, SubMapPortal) and obj.is_touched(self.player):
@@ -439,10 +466,6 @@ class Game:
             # Use distance-based detection to handle cases where enemy stops before player
             if enemy.is_touching(self.player):
                 self.player.take_enemy_damage()
-        
-        # Check if player is dead
-        if self.player.is_dead():
-            self._respawn()
         
         # Check if player is dead
         if self.player.is_dead():
@@ -499,6 +522,10 @@ class Game:
             elif isinstance(obj, Trap):
                 self.screen.blit(obj.img, (obj.x, obj.y))
             elif isinstance(obj, Light) and not obj.collected:
+                self.screen.blit(obj.img, (obj.x, obj.y))
+            elif isinstance(obj, Heal) and not obj.collected:
+                self.screen.blit(obj.img, (obj.x, obj.y))
+            elif isinstance(obj, Speed) and not obj.collected:
                 self.screen.blit(obj.img, (obj.x, obj.y))
             elif isinstance(obj, SubMapPortal):
                 self.screen.blit(obj.img, (obj.x, obj.y))

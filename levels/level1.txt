@@ -4,7 +4,7 @@
  W1       W  WWWWW  W WWW W
  W   WWW  W  W      W   W W
  W  VW    W     WW  WWW W W
- WWWWW  WWWWWWWWW   W   W W
+ WWWWW  WWWWWWWWW E W   W W
 WW       W      W  WW WWW W
 W  WWWWWWWWW   WW  W      W
 W  W     W WW   W  WWWW W W
@@ -13,7 +13,7 @@ WWWWWW     WWWWWW  WW WWW W
 W          W            W W
 WWWWWWWWWWWWWWWWWWWWWWWWW W
 W5W P W    W W W   W  W   W
-WE  W   W   W W       W W W
+W   W   W   W W       W W W
 WWWWWWWWWWWWWWWW  WWWWWWW W
                    W       
   WWWW WWWWW WWWWWWWWWWW   

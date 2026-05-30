@@ -1,4 +1,4 @@
-from .entities import Wall, Trap, Portal, Key, Door, Player, Winpad, Light, SubMapPortal
+from .entities import Wall, Trap, Portal, Key, Door, Player, Winpad, Light, SubMapPortal, Heal, Speed
 from .utils import optimise_walls
 from .settings import WALL_THICKNESS, BANNED_BUILDING_CHARACTERS, TILE_SIZE
 
@@ -91,6 +91,14 @@ class Maze:
         # ── Enemy ───────────────────────────────────────────────────────
         if char == "E":
             return "enemy_spawn"
+        
+        # ── Heal ────────────────────────────────────────────────────────
+        if char == "+":
+            return Heal(x, y, game.assets["heal"])
+        
+        # ── Speed ───────────────────────────────────────────────────────
+        if char == ">":
+            return Speed(x, y, game.assets["speed"])
 
         # ── Teleport portal (digit) ─────────────────────────────────────
         if char.isdigit():
