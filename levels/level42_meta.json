@@ -4,6 +4,7 @@
   "reward": -42,
   "tps": [],
   "fow": false,
+  "shadow": true,
   "enemies": [],
   "submap_routes": {}
 }

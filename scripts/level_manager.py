@@ -1,4 +1,4 @@
-from .entities import Key, Door, Enemy
+from .entities import Key, Door, Enemy, Shadow
 from .maze import Maze
 from .utils import load_map, generate_custom_maze, load_level_meta, load_levels_config
 from .settings import (
@@ -21,6 +21,8 @@ class LevelManager:
         self.enemy_list        = [[] for _ in range(NB_LEVELS)]
 
         self.vision_radius = VISION_RADIUS
+        self.shadow = None  # Shadow entity
+        self.shadow_enabled = False  # Whether shadow is enabled for current level
 
     # ------------------------------------------------------------------
     # Current access
@@ -35,6 +37,12 @@ class LevelManager:
     def has_fow(self, maze_id: int) -> bool:
         cfg = self.level_configs.get(maze_id)
         return bool(cfg and cfg.get("fow"))
+    
+    def has_shadow(self, maze_id: int) -> bool:
+        """Check if shadow system is enabled for this level"""
+        meta_filename = f"level{maze_id}_meta.json"
+        meta_data = load_level_meta(meta_filename)
+        return bool(meta_data.get("shadow", False))
     
     def enemies(self, maze_id):
         return self.enemy_list[maze_id - 1]

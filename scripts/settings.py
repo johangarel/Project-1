@@ -84,3 +84,6 @@ KEY_BINDINGS_DEFAULT = {
     "reset":  "K_r",
     "menu":   "K_ESCAPE",
 }
+
+INVICIBILITY_TIME = 1.0
+SHADOW_DELAY = 3.0

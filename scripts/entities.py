@@ -1,5 +1,5 @@
 import pygame
-from .settings import TILE_SIZE, TORCH_EFFECT, KEY_COLORS, PLAYER_WIDTH
+from .settings import TILE_SIZE, TORCH_EFFECT, KEY_COLORS, PLAYER_WIDTH, INVICIBILITY_TIME, SHADOW_DELAY
 
 
 # ==================================================================
@@ -19,6 +19,12 @@ class Player:
         self.img = img
         self.can_teleport = False
         self.direction = "right"
+        # Health system
+        self.health = 100
+        self.max_health = 100
+        self.trap_invincibility_timer = 0.0
+        self.enemy_invincibility_timer = 0.0
+        self.INVINCIBILITY_DURATION = INVICIBILITY_TIME  # seconds
 
     def modify_speed(self,speed: int):
         self.speed = speed
@@ -34,6 +40,17 @@ class Player:
         
         for wall in walls:
             if future_rect.colliderect(wall.rect):
+                return False
+        
+        # Check collision with enemies
+        for enemy in game.levels.enemies(game.maze):
+            if enemy.rect.colliderect(future_rect):
+                return False
+        
+        # Check collision with traps
+        for obj in game.levels.special_objs(game.maze):
+            rect2 = future_rect.inflate(-2,-2)
+            if obj.__class__.__name__ == 'Trap' and obj.rect.colliderect(rect2):
                 return False
             
         if not self.is_in_bounds_horizontal(dx, game):
@@ -122,6 +139,9 @@ class Player:
         self.keys = []
         self.rect = pygame.Rect(self.x,self.y,self.width,self.width)
         self.direction = "right"
+        self.health = self.max_health
+        self.trap_invincibility_timer = 0.0
+        self.enemy_invincibility_timer = 0.0
 
     def respawn(self):
         x,y = self.respawn_pos
@@ -129,11 +149,37 @@ class Player:
         self.y = y
         self.keys = []
         self.rect = pygame.Rect(self.x,self.y,self.width,self.width)
+        self.health = self.max_health
+        self.trap_invincibility_timer = 0.0
+        self.enemy_invincibility_timer = 0.0
 
     def pick_up_key(self,key):
         assert isinstance(key,Key)
         self.keys.append(key.door_id)
         key.collect()
+
+    def take_trap_damage(self):
+        """Apply instant damage from trap and set invincibility"""
+        if self.trap_invincibility_timer <= 0:
+            self.health = max(0, self.health - 50)
+            self.trap_invincibility_timer = self.INVINCIBILITY_DURATION
+
+    def take_enemy_damage(self):
+        """Apply instant damage from enemy and set invincibility"""
+        if self.enemy_invincibility_timer <= 0:
+            self.health = max(0, self.health - 25)
+            self.enemy_invincibility_timer = self.INVINCIBILITY_DURATION
+
+    def update_invincibility(self, dt: float):
+        """Update invincibility timers"""
+        if self.trap_invincibility_timer > 0:
+            self.trap_invincibility_timer -= dt
+        if self.enemy_invincibility_timer > 0:
+            self.enemy_invincibility_timer -= dt
+
+    def is_dead(self) -> bool:
+        """Check if player is dead"""
+        return self.health <= 0
 
 # ==================================================================
 # Eneny class
@@ -210,7 +256,7 @@ class Enemy:
             self._chase_path = []
             self._path_timer = self.PATH_REFRESH # reset timer
             self._path_computed_this_cycle = False
-            self._move_towards(player.x, player.y, self.speed_chase, walls, dt)
+            self._move_towards(player.x, player.y, self.speed_chase, walls, player, dt)
             return
 
         self._path_timer -= dt
@@ -247,7 +293,7 @@ class Enemy:
         if self._chase_path:
             cx = self._chase_path[0][0] + tile_size // 2 - self.width // 2
             cy = self._chase_path[0][1] + tile_size // 2 - self.width // 2
-            self._move_towards(cx, cy, self.speed_chase, walls, dt)
+            self._move_towards(cx, cy, self.speed_chase, walls, player, dt)
             if abs(self.x - cx) < 4 and abs(self.y - cy) < 4:
                 self._chase_path.pop(0)
         else:
@@ -274,15 +320,26 @@ class Enemy:
         if self._patrol_path:
             cx = self._patrol_path[0][0] + tile_size // 2 - self.width // 2
             cy = self._patrol_path[0][1] + tile_size // 2 - self.width // 2
-            self._move_towards(cx, cy, self.speed_patrol, walls, dt)
+            self._move_towards(cx, cy, self.speed_patrol, walls, None, dt)
             if abs(self.x - cx) < 4 and abs(self.y - cy) < 4:
                 self._patrol_path.pop(0)
         else:
             # Fallback
-            self._move_towards(tx, ty, self.speed_patrol, walls, dt)
+            self._move_towards(tx, ty, self.speed_patrol, walls, None, dt)
 
     def is_touching(self, player) -> bool:
-        return self.rect.colliderect(player.rect)
+        # Use both rect collision and distance-based detection
+        # This ensures damage is applied even if enemy stops just before player
+        if self.rect.colliderect(player.rect):
+            return True
+        
+        # Distance-based detection for cases where enemy is blocked just before touching
+        dx = (self.x + self.width / 2) - (player.x + player.width / 2)
+        dy = (self.y + self.width / 2) - (player.y + player.width / 2)
+        distance = (dx ** 2 + dy ** 2) ** 0.5
+        collision_distance = (self.width + player.width) / 2 + 5  # Add 5px tolerance
+        
+        return distance <= collision_distance
 
     def reset(self) -> None:
         self.x, self.y    = self.spawn_pos
@@ -300,8 +357,8 @@ class Enemy:
         dy = (self.y + self.width / 2) - (player.y + player.width / 2)
         return (dx ** 2 + dy ** 2) ** 0.5
 
-    def _move_towards(self, tx: float, ty: float, speed: int, walls: list, dt: float) -> None:
-        """Move toward (tx, ty) at given speed, sliding along walls."""
+    def _move_towards(self, tx: float, ty: float, speed: int, walls: list, player, dt: float) -> None:
+        """Move toward (tx, ty) at given speed, sliding along walls and avoiding player."""
         dx = tx - self.x
         dy = ty - self.y
         dist = (dx ** 2 + dy ** 2) ** 0.5
@@ -322,9 +379,12 @@ class Enemy:
         future_x = pygame.Rect(int(self.x + norm_dx), int(self.y), self.width, self.width)
         future_y = pygame.Rect(int(self.x), int(self.y + norm_dy), self.width, self.width)
 
-        if not any(future_x.colliderect(w.rect) for w in walls):
+        # Check collision with walls
+        player_rect = pygame.Rect(int(player.x), int(player.y), player.width, player.width) if player else None
+        
+        if not any(future_x.colliderect(w.rect) for w in walls) and (player_rect is None or not future_x.colliderect(player_rect)):
             self.x += norm_dx
-        if not any(future_y.colliderect(w.rect) for w in walls):
+        if not any(future_y.colliderect(w.rect) for w in walls) and (player_rect is None or not future_y.colliderect(player_rect)):
             self.y += norm_dy
 
         self.rect = pygame.Rect(int(self.x), int(self.y), self.width, self.width)
@@ -338,6 +398,82 @@ class Enemy:
                 best_dist = d
                 best_idx = i
         return best_idx
+
+# ==================================================================
+# Shadow class - Follows player with 3 second delay
+# ==================================================================
+
+class Shadow:
+    def __init__(self, img):
+        from collections import deque
+        self.x = -100.0
+        self.y = -100.0
+        self.width = PLAYER_WIDTH
+        self.direction = "right"
+        self.img = img
+        self.rect = pygame.Rect(int(self.x), int(self.y), self.width, self.width)
+        
+        # History of player positions with timestamps
+        # Each entry: (x, y, direction, timestamp)
+        self.position_history = deque(maxlen=1000)
+        
+        # Delay in seconds
+        self.delay = SHADOW_DELAY
+        
+        # Collision tracking
+        self.shadow_invincibility_timer = 0.0
+        self.INVINCIBILITY_DURATION = INVICIBILITY_TIME  # seconds
+    
+    def record_player_movement(self, player, current_time: float) -> None:
+        self.position_history.append((player.x, player.y, player.direction, current_time))
+    
+    def update(self, current_time: float) -> None:
+        # Look for position from 3 seconds ago
+        target_time = current_time - self.delay
+        
+        # Find the closest position in history before target_time
+        found_pos = None
+        for i in range(len(self.position_history) - 1, -1, -1):
+            x, y, direction, timestamp = self.position_history[i]
+            if timestamp <= target_time:
+                found_pos = (x, y, direction)
+                break
+        
+        # Update position and direction if found
+        if found_pos:
+            self.x, self.y, self.direction = found_pos
+            self.rect = pygame.Rect(int(self.x), int(self.y), self.width, self.width)
+        # If not found yet (within first 3 seconds), stay at initial position
+    
+    def is_touching(self, player) -> bool:
+        if self.rect.colliderect(player.rect):
+            return True
+        
+        # Distance-based detection
+        dx = (self.x + self.width / 2) - (player.x + player.width / 2)
+        dy = (self.y + self.width / 2) - (player.y + player.width / 2)
+        distance = (dx ** 2 + dy ** 2) ** 0.5
+        collision_distance = (self.width + player.width) / 2 + 5
+        
+        return distance <= collision_distance
+    
+    def reset(self) -> None:
+        self.position_history.clear()
+        self.x = -100.0
+        self.y = -100.0
+        self.direction = "right"
+        self.rect = pygame.Rect(int(self.x), int(self.y), self.width, self.width)
+        self.shadow_invincibility_timer = 0.0
+    
+    def update_invincibility(self, dt: float) -> None:
+        if self.shadow_invincibility_timer > 0:
+            self.shadow_invincibility_timer -= dt
+    
+    def can_damage_player(self) -> bool:
+        return self.shadow_invincibility_timer <= 0
+    
+    def apply_damage(self) -> None:
+        self.shadow_invincibility_timer = self.INVINCIBILITY_DURATION
 
 # ==================================================================
 # Obstacles classes

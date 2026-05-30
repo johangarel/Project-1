@@ -4,6 +4,7 @@
   "reward": 8,
   "tps": [1, null, 3, null, 5, null],
   "fow": true,
+  "shadow": false,
   "submap_routes": {
     "0": {
       "0": {

@@ -2,7 +2,7 @@ import os
 import pygame
 from pygame.locals import *
 
-from .entities import Player, Door, Key, Trap, Winpad, Portal, ButtonUI, Light, SubMapPortal, TextUI
+from .entities import Player, Door, Key, Trap, Winpad, Portal, ButtonUI, Light, SubMapPortal, TextUI, Shadow
 from .utils import invert_color
 from .settings import (
     WIDTH, HEIGHT, NB_LEVELS, TILE_SIZE, FPS,
@@ -63,6 +63,11 @@ class Game:
             player=Player(PLAYER_DEFAULT_POS, PLAYER_SPEED, PLAYER_WIDTH, self.assets["player"])
         )
         self.player: Player = self.levels._player   # convenient shortcut
+        
+        # --- Shadow system ---
+        self.shadow = Shadow(self.assets["shadow"])
+        self.levels.shadow = self.shadow
+        self.shadow_start_time = 0.0
 
         # --- Game state ---
         self.state      = GameState.MAIN_MENU
@@ -307,13 +312,23 @@ class Game:
         if keys[self.progress.keys["up"]]: dy -= dist
         if keys[self.progress.keys["down"]]: dy += dist
 
-        # Obstacles = walls + closed doors
+        # Obstacles = walls + closed doors (traps handled separately)
         walls = list(self.levels.walls(self.maze))
         for obj in self.levels.special_objs(self.maze):
             if isinstance(obj, Door) and not obj.opened:
                 walls.append(obj)
 
         self.player.move(dx, dy, walls, self)
+
+        # Update invincibility timers
+        self.player.update_invincibility(self.dt)
+
+        # Shadow system - Record player movement and update shadow
+        if self.levels.shadow_enabled:
+            current_time = self.seconds
+            self.shadow.record_player_movement(self.player, current_time)
+            self.shadow.update(current_time)
+            self.shadow.update_invincibility(self.dt)
 
         # Walking sfx
         if self.audio.music_play :
@@ -327,6 +342,16 @@ class Game:
 
         self._process_objects()
         self._process_enemies()
+        
+        # Process shadow collision with player
+        if self.levels.shadow_enabled:
+            if self.shadow.is_touching(self.player) and self.shadow.can_damage_player():
+                self.player.take_enemy_damage()
+                self.shadow.apply_damage()
+        
+        # Check if player is dead
+        if self.player.is_dead():
+            self._respawn()
 
     def _process_objects(self):
         portal_contact = False
@@ -361,10 +386,10 @@ class Game:
                             self.audio.play_sfx("sfx_unlock")
                         obj.open()
 
-            # Trap
-            elif isinstance(obj, Trap) and obj.is_touched(self.player):
-                self._respawn()
-                break
+            # Trap - detect contact with tolerance
+            elif isinstance(obj, Trap):
+                if obj.rect.colliderect(self.player.rect):
+                    self.player.take_trap_damage()
 
             # Light
             elif isinstance(obj, Light):
@@ -396,16 +421,32 @@ class Game:
 
         if not portal_contact:
             self.player.can_teleport = True
+        
+        # Check if player is dead
+        if self.player.is_dead():
+            self._respawn()
     
     def _process_enemies(self):
         current_map = self.current_map_index  # index sub-map actif
+        
         for enemy in self.levels.enemies(self.maze):
             if enemy.map_index != current_map:
                 continue
             layout = self.levels.level_map_list[self.maze-1]
             enemy.update(self.player, self.levels.walls(self.maze), self.dt, layout, self.tile_size)
+            
+            # Check if enemy is touching player and apply damage
+            # Use distance-based detection to handle cases where enemy stops before player
             if enemy.is_touching(self.player):
-                self._respawn()
+                self.player.take_enemy_damage()
+        
+        # Check if player is dead
+        if self.player.is_dead():
+            self._respawn()
+        
+        # Check if player is dead
+        if self.player.is_dead():
+            self._respawn()
 
     # ==================================================================
     # Rendering
@@ -462,6 +503,11 @@ class Game:
             elif isinstance(obj, SubMapPortal):
                 self.screen.blit(obj.img, (obj.x, obj.y))
 
+        # Shadow (drawn before player so it appears below)
+        if self.levels.shadow_enabled:
+            shadow_img = self.assets[f"shadow_{self.shadow.direction}"]
+            self.screen.blit(shadow_img, (self.shadow.x, self.shadow.y))
+
         # Player
         player_img = self.assets[f"player_{self.player.direction}"]
         self.screen.blit(player_img,(self.player.x,self.player.y))
@@ -480,10 +526,49 @@ class Game:
         if self.levels.has_fow(self.maze):
             self._draw_fog()
 
+        # Render health bar
+        self._render_health_bar()
+
         timer_txt = TextUI(
             self.width-100, 30, self.assets["font_small"], f"Time : {self.seconds}", (255, 255, 255)
             )
         self.screen.blit(timer_txt.txt, timer_txt.pos)
+
+    def _render_health_bar(self):
+        """Render the player health bar at the top left of the screen"""
+        # Health bar dimensions
+        bar_width = 100
+        bar_height = 20
+        bar_x = 10
+        bar_y = 10
+        
+        # Calculate health percentage
+        health_percentage = max(0, self.player.health / self.player.max_health)
+        green_width = int(bar_width * health_percentage)
+        red_width = bar_width - green_width
+        
+        # Draw green part (current health)
+        if green_width > 0:
+            pygame.draw.rect(self.screen, (0, 255, 0), 
+                           (bar_x, bar_y, green_width, bar_height))
+        
+        # Draw red part (missing health)
+        if red_width > 0:
+            pygame.draw.rect(self.screen, (255, 0, 0), 
+                           (bar_x + green_width, bar_y, red_width, bar_height))
+        
+        # Draw border
+        pygame.draw.rect(self.screen, (255, 255, 255), 
+                       (bar_x, bar_y, bar_width, bar_height), 2)
+        
+        # Draw health text
+        health_text = TextUI(
+            bar_x + bar_width + 50, bar_y + bar_height // 2, 
+            self.assets["font_small"], 
+            f"{int(self.player.health)}/100", 
+            (255, 255, 255)
+        )
+        self.screen.blit(health_text.txt, health_text.pos)
 
     def _render_level_menu(self):
         font_color = self.font_color
@@ -727,6 +812,7 @@ class Game:
         self.current_map_index = 0
         layout = self.levels.load_sub_map(self.maze, 0, self, False)
         self.player.respawn()
+        self.shadow.reset()
         self._resize_window(layout)
         self.timer = pygame.time.get_ticks()
         self.clock.tick()
@@ -775,6 +861,11 @@ class Game:
             else:
                 layout = self.levels.load_sub_map(level_id, 0, self, True)
             self._resize_window(layout)
+
+        # Initialize shadow if enabled for this level
+        self.levels.shadow_enabled = self.levels.has_shadow(level_id)
+        self.shadow.reset()
+        self.shadow_start_time = 0.0
 
         self.audio.switch_to_level(level_id)
         self.timer = pygame.time.get_ticks()

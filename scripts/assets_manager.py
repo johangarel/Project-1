@@ -72,6 +72,13 @@ class AssetsManager:
                     self._assets["enemy_left"]  = pygame.transform.flip(base, True, False)
                     self._assets["enemy_up"]    = pygame.transform.rotate(base, 90)
                     self._assets["enemy_down"]  = pygame.transform.rotate(base, -90)
+                elif key == "shadow":
+                    # Shadow additional assets
+                    base = self._assets[key]
+                    self._assets["shadow_right"] = base
+                    self._assets["shadow_left"]  = pygame.transform.flip(base, True, False)
+                    self._assets["shadow_up"]    = pygame.transform.rotate(base, 90)
+                    self._assets["shadow_down"]  = pygame.transform.rotate(base, -90)
             except pygame.error as e:
                 print(f"Warning: Could not load image '{key}' from {filename}: {e}")
         
